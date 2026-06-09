@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Menu, X } from "lucide-react";
 
 import culturaLogo from "@/assets/cultura-logo-horizontal.png";
+import museuLogo from "@/assets/museu-logo.png";
 
 const secretariaMenuItems = [
   { to: "/", label: "Home" },
@@ -84,9 +85,11 @@ function MobileMenu({
                   className="h-12 w-auto object-contain"
                 />
               ) : (
-                <span className="font-display text-xl tracking-wide">
-                  Secretaria de <span className="italic">Cultura</span>
-                </span>
+                <img
+                  src={museuLogo}
+                  alt="Museu Historico de Siqueira Campos"
+                  className="h-12 w-auto object-contain"
+                />
               )}
             </Link>
 
@@ -175,12 +178,27 @@ export function SiteHeader() {
 
 export function PageHeader({ menu = "secretaria" }: { menu?: MobileMenuVariant }) {
   const items = menu === "museu" ? museumMenuItems : secretariaMenuItems;
+  const isMuseum = menu === "museu";
 
   return (
     <header className="border-b border-border bg-background">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 md:px-10">
-        <Link to="/" className="font-display text-xl tracking-wide md:text-2xl">
-          Secretaria de <span className="italic">Cultura</span>
+        <Link
+          to={isMuseum ? "/museu" : "/"}
+          className={isMuseum ? "block" : "font-display text-xl tracking-wide md:text-2xl"}
+          aria-label={isMuseum ? "Museu Historico de Siqueira Campos" : "Secretaria de Cultura"}
+        >
+          {isMuseum ? (
+            <img
+              src={museuLogo}
+              alt="Museu Historico de Siqueira Campos"
+              className="h-14 w-auto object-contain md:h-16"
+            />
+          ) : (
+            <>
+              Secretaria de <span className="italic">Cultura</span>
+            </>
+          )}
         </Link>
         <nav className="hidden gap-8 text-sm uppercase tracking-[0.18em] text-muted-foreground md:flex">
           {items.map((item) => (

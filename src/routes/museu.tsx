@@ -3,6 +3,7 @@ import { ArrowRight, Clock, Images, MapPin } from "lucide-react";
 
 import { PageHeader, SiteFooter } from "@/components/SiteHeader";
 import { collection } from "@/lib/collection";
+import museuLogo from "@/assets/museu-logo.png";
 import heroAsset from "@/assets/museu_54_1.asset.json";
 
 const hero = heroAsset.url;
@@ -211,9 +212,16 @@ function Museu() {
       <PageHeader menu="museu" />
 
       <section className="border-b border-border">
-        <div className="mx-auto grid max-w-7xl gap-12 px-6 py-20 md:grid-cols-12 md:px-10 md:py-28">
+        <div className="mx-auto grid max-w-7xl gap-12 px-6 py-14 md:grid-cols-12 md:px-10 md:py-24">
           <div className="md:col-span-5">
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+            <div className="inline-flex border border-border bg-card/80 px-5 py-4 shadow-sm">
+              <img
+                src={museuLogo}
+                alt="Museu Historico de Siqueira Campos"
+                className="h-auto w-64 max-w-full object-contain md:w-80"
+              />
+            </div>
+            <p className="mt-8 text-xs uppercase tracking-[0.3em] text-muted-foreground">
               — Museu Histórico Municipal
             </p>
             <h1 className="mt-6 font-display text-5xl leading-[1.05] md:text-7xl">
@@ -240,6 +248,7 @@ function Museu() {
             </div>
           </div>
           <div className="md:col-span-7">
+            <div className="relative overflow-hidden border border-border bg-secondary/40 p-3">
             <img
               src={hero}
               alt="Salão principal do Museu de Siqueira Campos"
@@ -247,6 +256,15 @@ function Museu() {
               width={1400}
               height={1050}
             />
+              <div className="absolute bottom-3 left-3 right-3 border border-white/25 bg-black/55 px-5 py-4 text-background backdrop-blur-sm">
+                <p className="text-[10px] uppercase tracking-[0.28em] text-background/70">
+                  Patrimonio e memoria
+                </p>
+                <p className="mt-2 font-display text-2xl leading-tight">
+                  Um acervo vivo para contar a historia local.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
