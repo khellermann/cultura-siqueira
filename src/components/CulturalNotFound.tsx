@@ -28,18 +28,18 @@ export function CulturalNotFound() {
     }
 
     const ctx = gsap.context(() => {
-      const timeline = gsap.timeline({ defaults: { ease: "power3.out" } });
+      const timeline = gsap.timeline({ defaults: { ease: "power4.inOut" } });
 
       timeline
         .to("[data-curtain='left']", {
-          duration: 1.25,
+          duration: 2.6,
           scaleX: 0.12,
           transformOrigin: "left center",
         })
         .to(
           "[data-curtain='right']",
           {
-            duration: 1.25,
+            duration: 2.6,
             scaleX: 0.12,
             transformOrigin: "right center",
           },
@@ -49,7 +49,7 @@ export function CulturalNotFound() {
           "[data-number]",
           { y: 46, opacity: 0, scale: 0.84, rotate: -2 },
           { y: 0, opacity: 1, scale: 1, rotate: 0, duration: 0.8 },
-          "-=0.58",
+          "-=0.35",
         )
         .fromTo(
           "[data-copy]",
