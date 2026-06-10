@@ -11,7 +11,13 @@ import {
   serverTimestamp,
   setDoc,
 } from "firebase/firestore";
-import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, type User } from "firebase/auth";
+import {
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithRedirect,
+  signOut,
+  type User,
+} from "firebase/auth";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { CalendarDays, LogOut, Plus, ShieldCheck, Upload, UserPlus } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
@@ -137,7 +143,16 @@ function Admin() {
   async function handleLogin() {
     if (!firebaseAuth) return;
     setMessage("");
-    await signInWithPopup(firebaseAuth, new GoogleAuthProvider());
+    const provider = new GoogleAuthProvider();
+    provider.addScope("email");
+    provider.addScope("profile");
+
+    try {
+      await signInWithRedirect(firebaseAuth, provider);
+    } catch (error) {
+      console.error(error);
+      setMessage("Nao foi possivel abrir o login do Google. Confira o provedor Google no Firebase.");
+    }
   }
 
   async function handleLogout() {
