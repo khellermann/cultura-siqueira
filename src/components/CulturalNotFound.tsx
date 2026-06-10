@@ -1,130 +1,88 @@
 import { Link } from "@tanstack/react-router";
 import { BookOpen, Brush, Clapperboard, Landmark, Music2, Theater } from "lucide-react";
 import { useEffect, useRef } from "react";
-
-declare global {
-  interface Window {
-    gsap?: {
-      fromTo: (
-        targets: unknown,
-        fromVars: Record<string, unknown>,
-        toVars: Record<string, unknown>,
-      ) => unknown;
-      to: (targets: unknown, vars: Record<string, unknown>) => unknown;
-      timeline: (vars?: Record<string, unknown>) => {
-        fromTo: (
-          targets: unknown,
-          fromVars: Record<string, unknown>,
-          toVars: Record<string, unknown>,
-          position?: string | number,
-        ) => ReturnType<Window["gsap"]["timeline"]>;
-        to: (
-          targets: unknown,
-          vars: Record<string, unknown>,
-          position?: string | number,
-        ) => ReturnType<Window["gsap"]["timeline"]>;
-      };
-    };
-  }
-}
+import { gsap } from "gsap";
 
 const culturalIcons = [
   { icon: Theater, label: "Teatro", className: "left-[8%] top-[18%] text-[#F7A600]" },
-  { icon: Music2, label: "Música", className: "right-[9%] top-[22%] text-[#0B86D8]" },
+  { icon: Music2, label: "Musica", className: "right-[9%] top-[22%] text-[#0B86D8]" },
   { icon: BookOpen, label: "Livro", className: "left-[13%] bottom-[18%] text-[#00A859]" },
   { icon: Brush, label: "Arte", className: "right-[15%] bottom-[20%] text-[#EF1B2D]" },
   { icon: Landmark, label: "Museu", className: "left-[48%] top-[10%] text-[#414296]" },
   { icon: Clapperboard, label: "Bastidores", className: "right-[46%] bottom-[10%] text-[#7B3F24]" },
 ] as const;
 
-function loadGsap() {
-  if (window.gsap) return Promise.resolve(window.gsap);
-
-  return new Promise<NonNullable<Window["gsap"]>>((resolve, reject) => {
-    const existingScript = document.querySelector<HTMLScriptElement>("script[data-gsap]");
-    if (existingScript) {
-      existingScript.addEventListener("load", () => window.gsap && resolve(window.gsap));
-      existingScript.addEventListener("error", reject);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js";
-    script.async = true;
-    script.dataset.gsap = "true";
-    script.onload = () => (window.gsap ? resolve(window.gsap) : reject());
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-}
-
 export function CulturalNotFound() {
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    const root = rootRef.current;
+    if (!root) return;
+
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReducedMotion) {
+      gsap.set(root.querySelectorAll("[data-curtain]"), { scaleX: 0.12 });
+      gsap.set(root.querySelectorAll("[data-animated]"), { opacity: 1, y: 0, scale: 1 });
+      return;
+    }
 
-    if (prefersReducedMotion) return;
+    const ctx = gsap.context(() => {
+      const timeline = gsap.timeline({ defaults: { ease: "power3.out" } });
 
-    loadGsap()
-      .then((gsap) => {
-        if (cancelled || !rootRef.current) return;
+      timeline
+        .to("[data-curtain='left']", {
+          duration: 1.25,
+          scaleX: 0.12,
+          transformOrigin: "left center",
+        })
+        .to(
+          "[data-curtain='right']",
+          {
+            duration: 1.25,
+            scaleX: 0.12,
+            transformOrigin: "right center",
+          },
+          "<",
+        )
+        .fromTo(
+          "[data-number]",
+          { y: 46, opacity: 0, scale: 0.84, rotate: -2 },
+          { y: 0, opacity: 1, scale: 1, rotate: 0, duration: 0.8 },
+          "-=0.58",
+        )
+        .fromTo(
+          "[data-copy]",
+          { y: 24, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.65, stagger: 0.1 },
+          "-=0.28",
+        )
+        .fromTo(
+          "[data-float]",
+          { y: 20, opacity: 0, rotate: -8, scale: 0.92 },
+          { y: 0, opacity: 1, rotate: 0, scale: 1, duration: 0.72, stagger: 0.08 },
+          "-=0.42",
+        );
 
-        const root = rootRef.current;
-        const timeline = gsap.timeline({ defaults: { ease: "power3.out" } });
-
-        timeline
-          .to(root.querySelectorAll("[data-curtain]"), {
-            duration: 1.3,
-            scaleX: 0.18,
-            stagger: 0.08,
-            transformOrigin: (index: number) => (index === 0 ? "left center" : "right center"),
-          })
-          .fromTo(
-            root.querySelector("[data-number]"),
-            { y: 38, opacity: 0, scale: 0.86 },
-            { y: 0, opacity: 1, scale: 1, duration: 0.75 },
-            "-=0.65",
-          )
-          .fromTo(
-            root.querySelectorAll("[data-copy]"),
-            { y: 22, opacity: 0 },
-            { y: 0, opacity: 1, duration: 0.65, stagger: 0.1 },
-            "-=0.25",
-          )
-          .fromTo(
-            root.querySelectorAll("[data-float]"),
-            { y: 18, opacity: 0, rotate: -8 },
-            { y: 0, opacity: 1, rotate: 0, duration: 0.7, stagger: 0.08 },
-            "-=0.45",
-          );
-
-        root.querySelectorAll("[data-float]").forEach((element, index) => {
-          gsap.to(element, {
-            y: index % 2 === 0 ? -16 : 16,
-            x: index % 3 === 0 ? 8 : -8,
-            rotate: index % 2 === 0 ? 5 : -5,
-            duration: 2.8 + index * 0.18,
-            ease: "sine.inOut",
-            repeat: -1,
-            yoyo: true,
-          });
-        });
-      })
-      .catch(() => {
-        rootRef.current?.classList.add("gsap-fallback");
+      gsap.to("[data-float]", {
+        y: (index) => (index % 2 === 0 ? -16 : 16),
+        x: (index) => (index % 3 === 0 ? 8 : -8),
+        rotate: (index) => (index % 2 === 0 ? 5 : -5),
+        duration: (index) => 2.8 + index * 0.18,
+        ease: "sine.inOut",
+        repeat: -1,
+        yoyo: true,
+        delay: 1.1,
       });
+    }, root);
 
-    return () => {
-      cancelled = true;
-    };
+    return () => ctx.revert();
   }, []);
 
   function animateButton(direction: "in" | "out") {
-    if (!window.gsap || !buttonRef.current) return;
-    window.gsap.to(buttonRef.current, {
+    if (!buttonRef.current) return;
+
+    gsap.to(buttonRef.current, {
       duration: 0.28,
       scale: direction === "in" ? 1.04 : 1,
       y: direction === "in" ? -2 : 0,
@@ -138,11 +96,11 @@ export function CulturalNotFound() {
       className="relative isolate flex min-h-screen overflow-hidden bg-[#FFF7EB] text-[#24223A]"
     >
       <div
-        data-curtain
+        data-curtain="left"
         className="absolute inset-y-0 left-0 z-20 w-1/2 origin-left bg-[repeating-linear-gradient(90deg,#8B1E24_0,#8B1E24_26px,#A8282E_26px,#A8282E_52px)] shadow-[inset_-22px_0_36px_rgba(0,0,0,0.24)]"
       />
       <div
-        data-curtain
+        data-curtain="right"
         className="absolute inset-y-0 right-0 z-20 w-1/2 origin-right bg-[repeating-linear-gradient(90deg,#A8282E_0,#A8282E_26px,#8B1E24_26px,#8B1E24_52px)] shadow-[inset_22px_0_36px_rgba(0,0,0,0.24)]"
       />
 
@@ -155,9 +113,10 @@ export function CulturalNotFound() {
           <div
             key={item.label}
             data-float
+            data-animated
             aria-hidden="true"
             className={[
-              "pointer-events-none absolute hidden rounded-full border border-black/10 bg-white/75 p-4 shadow-[0_18px_45px_rgba(65,66,150,0.14)] backdrop-blur sm:block",
+              "pointer-events-none absolute hidden rounded-full border border-black/10 bg-white/75 p-4 opacity-0 shadow-[0_18px_45px_rgba(65,66,150,0.14)] backdrop-blur sm:block",
               item.className,
             ].join(" ")}
           >
@@ -169,7 +128,8 @@ export function CulturalNotFound() {
       <section className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center justify-center px-6 py-20 text-center md:px-10">
         <p
           data-copy
-          className="mb-6 inline-flex items-center gap-3 border border-[#414296]/20 bg-white/75 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-[#414296] shadow-sm"
+          data-animated
+          className="mb-6 inline-flex items-center gap-3 border border-[#414296]/20 bg-white/75 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-[#414296] opacity-0 shadow-sm"
         >
           <Theater className="h-4 w-4 text-[#EF1B2D]" />
           Secretaria Municipal de Cultura
@@ -177,12 +137,13 @@ export function CulturalNotFound() {
 
         <h1
           data-number
-          className="font-sans text-[7rem] font-black leading-none tracking-normal text-[#414296] sm:text-[10rem] md:text-[13rem]"
+          data-animated
+          className="font-sans text-[7rem] font-black leading-none tracking-normal text-[#414296] opacity-0 sm:text-[10rem] md:text-[13rem]"
         >
           404
         </h1>
 
-        <div data-copy className="mx-auto mt-4 max-w-3xl">
+        <div data-copy data-animated className="mx-auto mt-4 max-w-3xl opacity-0">
           <h2 className="font-sans text-4xl font-black leading-tight tracking-normal md:text-6xl">
             A página saiu de cena
           </h2>
@@ -194,7 +155,8 @@ export function CulturalNotFound() {
 
         <div
           data-copy
-          className="mt-10 grid w-full max-w-2xl gap-3 text-left text-sm text-[#5F5D70] sm:grid-cols-3"
+          data-animated
+          className="mt-10 grid w-full max-w-2xl gap-3 text-left text-sm text-[#5F5D70] opacity-0 sm:grid-cols-3"
         >
           <div className="border border-[#E5D8C8] bg-white/70 p-4">
             <p className="font-semibold text-[#414296]">No palco</p>
@@ -212,10 +174,12 @@ export function CulturalNotFound() {
 
         <Link
           ref={buttonRef}
+          data-copy
+          data-animated
           to="/"
           onMouseEnter={() => animateButton("in")}
           onMouseLeave={() => animateButton("out")}
-          className="mt-10 inline-flex items-center justify-center bg-[#414296] px-7 py-4 text-xs font-semibold uppercase tracking-[0.22em] text-white shadow-[0_18px_35px_rgba(65,66,150,0.24)] transition-colors hover:bg-[#00A859] focus:outline-none focus:ring-4 focus:ring-[#F7A600]/45"
+          className="mt-10 inline-flex items-center justify-center bg-[#414296] px-7 py-4 text-xs font-semibold uppercase tracking-[0.22em] text-white opacity-0 shadow-[0_18px_35px_rgba(65,66,150,0.24)] transition-colors hover:bg-[#00A859] focus:outline-none focus:ring-4 focus:ring-[#F7A600]/45"
         >
           Voltar para a página inicial
         </Link>
