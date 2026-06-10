@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { SiteFooter, SiteHeader } from "@/components/SiteHeader";
 import culturaLogoStacked from "@/assets/cultura-logo-stacked.png";
@@ -15,6 +15,7 @@ type SecretariaCard = {
 type SecretariaPageProps = {
   accentColor: string;
   cards: SecretariaCard[];
+  children?: ReactNode;
   description: string;
   eyebrow: string;
   icon: LucideIcon;
@@ -24,6 +25,7 @@ type SecretariaPageProps = {
 export function SecretariaPage({
   accentColor,
   cards,
+  children,
   description,
   eyebrow,
   icon: Icon,
@@ -161,6 +163,8 @@ export function SecretariaPage({
           ))}
         </div>
       </section>
+
+      {children}
 
       <SiteFooter />
     </div>

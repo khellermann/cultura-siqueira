@@ -17,6 +17,7 @@ import { Route as EventosRouteImport } from './routes/eventos'
 import { Route as ContribuaRouteImport } from './routes/contribua'
 import { Route as CasaDaCulturaRouteImport } from './routes/casa-da-cultura'
 import { Route as BibliotecaRouteImport } from './routes/biblioteca'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AcervoRouteImport } from './routes/acervo'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -60,6 +61,11 @@ const BibliotecaRoute = BibliotecaRouteImport.update({
   path: '/biblioteca',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AcervoRoute = AcervoRouteImport.update({
   id: '/acervo',
   path: '/acervo',
@@ -74,6 +80,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/acervo': typeof AcervoRoute
+  '/admin': typeof AdminRoute
   '/biblioteca': typeof BibliotecaRoute
   '/casa-da-cultura': typeof CasaDaCulturaRoute
   '/contribua': typeof ContribuaRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/acervo': typeof AcervoRoute
+  '/admin': typeof AdminRoute
   '/biblioteca': typeof BibliotecaRoute
   '/casa-da-cultura': typeof CasaDaCulturaRoute
   '/contribua': typeof ContribuaRoute
@@ -99,6 +107,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/acervo': typeof AcervoRoute
+  '/admin': typeof AdminRoute
   '/biblioteca': typeof BibliotecaRoute
   '/casa-da-cultura': typeof CasaDaCulturaRoute
   '/contribua': typeof ContribuaRoute
@@ -113,6 +122,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/acervo'
+    | '/admin'
     | '/biblioteca'
     | '/casa-da-cultura'
     | '/contribua'
@@ -125,6 +135,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/acervo'
+    | '/admin'
     | '/biblioteca'
     | '/casa-da-cultura'
     | '/contribua'
@@ -137,6 +148,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/acervo'
+    | '/admin'
     | '/biblioteca'
     | '/casa-da-cultura'
     | '/contribua'
@@ -150,6 +162,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AcervoRoute: typeof AcervoRoute
+  AdminRoute: typeof AdminRoute
   BibliotecaRoute: typeof BibliotecaRoute
   CasaDaCulturaRoute: typeof CasaDaCulturaRoute
   ContribuaRoute: typeof ContribuaRoute
@@ -218,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BibliotecaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/acervo': {
       id: '/acervo'
       path: '/acervo'
@@ -238,6 +258,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AcervoRoute: AcervoRoute,
+  AdminRoute: AdminRoute,
   BibliotecaRoute: BibliotecaRoute,
   CasaDaCulturaRoute: CasaDaCulturaRoute,
   ContribuaRoute: ContribuaRoute,
