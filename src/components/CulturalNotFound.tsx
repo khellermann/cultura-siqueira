@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { BookOpen, Brush, Clapperboard, Landmark, Music2, Theater } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
@@ -15,6 +15,7 @@ const culturalIcons = [
 export function CulturalNotFound() {
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLAnchorElement>(null);
+  const pathname = useLocation({ select: (location) => location.pathname });
 
   useEffect(() => {
     const root = rootRef.current;
@@ -28,6 +29,11 @@ export function CulturalNotFound() {
     }
 
     const ctx = gsap.context(() => {
+      gsap.set("[data-curtain]", { clearProps: "transform", scaleX: 1 });
+      gsap.set("[data-number]", { opacity: 0, y: 46, scale: 0.84, rotate: -2 });
+      gsap.set("[data-copy]", { opacity: 0, y: 24 });
+      gsap.set("[data-float]", { opacity: 0, y: 20, rotate: -8, scale: 0.92 });
+
       const timeline = gsap.timeline({ defaults: { ease: "power4.inOut" } });
 
       timeline
@@ -77,7 +83,7 @@ export function CulturalNotFound() {
     }, root);
 
     return () => ctx.revert();
-  }, []);
+  }, [pathname]);
 
   function animateButton(direction: "in" | "out") {
     if (!buttonRef.current) return;
