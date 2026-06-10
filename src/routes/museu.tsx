@@ -3,7 +3,6 @@ import { ArrowRight, Clock, Images, MapPin } from "lucide-react";
 
 import { PageHeader, SiteFooter } from "@/components/SiteHeader";
 import { collection } from "@/lib/collection";
-import museuLogo from "@/assets/museu-logo.png";
 import heroAsset from "@/assets/museu_54_1.asset.json";
 
 const hero = heroAsset.url;
@@ -214,14 +213,7 @@ function Museu() {
       <section className="border-b border-border">
         <div className="mx-auto grid max-w-7xl gap-12 px-6 py-14 md:grid-cols-12 md:px-10 md:py-24">
           <div className="md:col-span-5">
-            <div className="inline-flex border border-border bg-card/80 px-5 py-4 shadow-sm">
-              <img
-                src={museuLogo}
-                alt="Museu Historico de Siqueira Campos"
-                className="h-auto w-64 max-w-full object-contain md:w-80"
-              />
-            </div>
-            <p className="mt-8 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
               — Museu Histórico Municipal
             </p>
             <h1 className="mt-6 font-display text-5xl leading-[1.05] md:text-7xl">
