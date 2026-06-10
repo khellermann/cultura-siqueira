@@ -1,4 +1,11 @@
-export const primaryAdminEmail = "khellermann@gmail.com";
+const fallbackAdminEmail = "khellermann@gmail.com";
+
+export const adminEmails = (import.meta.env.VITE_FIREBASE_ADMIN_EMAILS ?? fallbackAdminEmail)
+  .split(",")
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
+
+export const primaryAdminEmail = adminEmails[0] ?? fallbackAdminEmail;
 
 export const adminUsersCollection = "admin_users";
 export const eventsCollection = "events";
@@ -51,5 +58,5 @@ export function normalizeEmail(email: string) {
 }
 
 export function isPrimaryAdmin(email?: string | null) {
-  return normalizeEmail(email ?? "") === primaryAdminEmail;
+  return adminEmails.includes(normalizeEmail(email ?? ""));
 }

@@ -10,9 +10,19 @@ const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 } satisfies Partial<FirebaseOptions>;
 
-export const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean);
+const requiredFirebaseKeys = [
+  firebaseConfig.apiKey,
+  firebaseConfig.authDomain,
+  firebaseConfig.projectId,
+  firebaseConfig.storageBucket,
+  firebaseConfig.messagingSenderId,
+  firebaseConfig.appId,
+];
+
+export const isFirebaseConfigured = requiredFirebaseKeys.every(Boolean);
 
 export const firebaseApp: FirebaseApp | null = isFirebaseConfigured
   ? (getApps()[0] ?? initializeApp(firebaseConfig as FirebaseOptions))
