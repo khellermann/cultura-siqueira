@@ -1,29 +1,44 @@
-import { useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { doc, getDoc } from "firebase/firestore";
 import { Menu, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 import culturaLogo from "@/assets/cultura-logo-horizontal.png";
 import museuLogo from "@/assets/museu-logo.png";
-
-const secretariaMenuItems = [
-  { to: "/", label: "Home" },
-  { to: "/museu", label: "Museu" },
-  { to: "/biblioteca", label: "Biblioteca" },
-  { to: "/casa-da-cultura", label: "Casa da Cultura" },
-  { to: "/inscricoes", label: "Inscrições" },
-  { to: "/eventos", label: "Eventos" },
-] as const;
-
-const museumMenuItems = [
-  { to: "/", label: "Home" },
-  { to: "/acervo", label: "Acervo" },
-  { to: "/sobre", label: "Sobre" },
-  { to: "/visite", label: "Visite" },
-  { to: "/contribua", label: "Contribua" },
-] as const;
+import { firebaseDb } from "@/lib/firebase";
+import {
+  defaultMenuVisibility,
+  mergeMenuVisibility,
+  museumMenuItems,
+  navigationSettingsDocId,
+  secretariaMenuItems,
+  siteSettingsCollection,
+} from "@/lib/siteSettings";
 
 type MobileMenuVariant = "secretaria" | "museu";
 type MenuItem = (typeof secretariaMenuItems)[number] | (typeof museumMenuItems)[number];
+
+function useVisibleMenuItems(items: readonly MenuItem[]) {
+  const [visibility, setVisibility] = useState(defaultMenuVisibility);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadVisibility() {
+      if (!firebaseDb) return;
+      const snapshot = await getDoc(doc(firebaseDb, siteSettingsCollection, navigationSettingsDocId));
+      if (!mounted || !snapshot.exists()) return;
+      setVisibility(mergeMenuVisibility(snapshot.data().items as Record<string, unknown> | undefined));
+    }
+
+    loadVisibility().catch((error) => console.error(error));
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  return useMemo(() => items.filter((item) => visibility[item.path] !== false), [items, visibility]);
+}
 
 function MobileMenu({
   items,
@@ -34,6 +49,7 @@ function MobileMenu({
 }) {
   const [open, setOpen] = useState(false);
   const isSecretaria = variant === "secretaria";
+  const visibleItems = useVisibleMenuItems(items);
 
   return (
     <>
@@ -110,10 +126,10 @@ function MobileMenu({
           </div>
 
           <nav className="mt-16 flex flex-1 flex-col justify-center gap-3 pb-16">
-            {items.map((item, index) => (
+            {visibleItems.map((item, index) => (
               <Link
-                key={item.to}
-                to={item.to}
+                key={item.path}
+                to={item.path}
                 onClick={() => setOpen(false)}
                 tabIndex={open ? undefined : -1}
                 activeProps={{
@@ -136,7 +152,7 @@ function MobileMenu({
                     isSecretaria ? "text-[#F7A600]" : "text-accent",
                   ].join(" ")}
                 >
-                  →
+                  -&gt;
                 </span>
               </Link>
             ))}
@@ -147,9 +163,11 @@ function MobileMenu({
   );
 }
 
-export function SiteHeader() {
+function SecretariaNav({ absolute = false }: { absolute?: boolean }) {
+  const visibleItems = useVisibleMenuItems(secretariaMenuItems);
+
   return (
-    <header className="absolute top-0 left-0 right-0 z-20">
+    <header className={absolute ? "absolute top-0 left-0 right-0 z-20" : "border-b border-[#E7E7EF] bg-white"}>
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 md:px-10">
         <Link to="/" className="block" aria-label="Secretaria Municipal de Cultura">
           <img
@@ -159,10 +177,10 @@ export function SiteHeader() {
           />
         </Link>
         <nav className="hidden items-center gap-6 text-xs font-semibold uppercase tracking-[0.16em] text-[#414296] md:flex">
-          {secretariaMenuItems.map((item) => (
+          {visibleItems.map((item) => (
             <Link
-              key={item.to}
-              to={item.to}
+              key={item.path}
+              to={item.path}
               activeProps={{ className: "text-[#00A859]" }}
               className="transition hover:text-[#00A859]"
             >
@@ -176,37 +194,17 @@ export function SiteHeader() {
   );
 }
 
+export function SiteHeader() {
+  return <SecretariaNav absolute />;
+}
+
 export function SecretariaHeader() {
-  return (
-    <header className="border-b border-[#E7E7EF] bg-white">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 md:px-10">
-        <Link to="/" className="block" aria-label="Secretaria Municipal de Cultura">
-          <img
-            src={culturaLogo}
-            alt="Secretaria Municipal de Cultura de Siqueira Campos"
-            className="h-12 w-auto object-contain md:h-16"
-          />
-        </Link>
-        <nav className="hidden items-center gap-6 text-xs font-semibold uppercase tracking-[0.16em] text-[#414296] md:flex">
-          {secretariaMenuItems.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              activeProps={{ className: "text-[#00A859]" }}
-              className="transition hover:text-[#00A859]"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <MobileMenu items={secretariaMenuItems} variant="secretaria" />
-      </div>
-    </header>
-  );
+  return <SecretariaNav />;
 }
 
 export function PageHeader({ menu = "secretaria" }: { menu?: MobileMenuVariant }) {
   const items = menu === "museu" ? museumMenuItems : secretariaMenuItems;
+  const visibleItems = useVisibleMenuItems(items);
   const isMuseum = menu === "museu";
 
   return (
@@ -230,10 +228,10 @@ export function PageHeader({ menu = "secretaria" }: { menu?: MobileMenuVariant }
           )}
         </Link>
         <nav className="hidden gap-8 text-sm uppercase tracking-[0.18em] text-muted-foreground md:flex">
-          {items.map((item) => (
+          {visibleItems.map((item) => (
             <Link
-              key={item.to}
-              to={item.to}
+              key={item.path}
+              to={item.path}
               activeProps={{ className: "text-foreground" }}
               className="hover:text-foreground"
             >
@@ -254,24 +252,24 @@ export function SiteFooter() {
         <div>
           <p className="font-display text-2xl">Secretaria Municipal de Cultura</p>
           <p className="mt-3 text-sm text-muted-foreground">
-            Cultura, memória, leitura e criação em Siqueira Campos.
+            Cultura, memoria, leitura e criacao em Siqueira Campos.
           </p>
         </div>
         <div className="text-sm">
           <p className="uppercase tracking-[0.2em] text-muted-foreground">Equipamentos</p>
-          <p className="mt-3">Museu Histórico Municipal</p>
+          <p className="mt-3">Museu Historico Municipal</p>
           <p>Biblioteca Municipal</p>
           <p>Casa da Cultura</p>
         </div>
         <div className="text-sm">
           <p className="uppercase tracking-[0.2em] text-muted-foreground">Contato</p>
-          <p className="mt-3">Centro · Siqueira Campos — PR</p>
+          <p className="mt-3">Centro - Siqueira Campos - PR</p>
           <p>(43) 0000-0000</p>
           <p>cultura@siqueiracampos.pr.gov.br</p>
         </div>
       </div>
       <div className="border-t border-border py-5 text-center text-xs uppercase tracking-[0.2em] text-muted-foreground">
-        © {new Date().getFullYear()} — Secretaria Municipal de Cultura de Siqueira Campos
+        (c) {new Date().getFullYear()} - Secretaria Municipal de Cultura de Siqueira Campos
       </div>
     </footer>
   );

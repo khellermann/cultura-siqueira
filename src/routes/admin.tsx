@@ -53,6 +53,13 @@ import {
   type CulturalEvent,
   type EventPeriodUnit,
 } from "@/lib/events";
+import {
+  defaultMenuVisibility,
+  mergeMenuVisibility,
+  navigationSettingsDocId,
+  publicPages,
+  siteSettingsCollection,
+} from "@/lib/siteSettings";
 
 type AdminAccess = "loading" | "allowed" | "denied" | "signed-out";
 type AdminPanel = "overview" | "events" | "registrations" | "pages" | "admins";
@@ -109,19 +116,6 @@ const adminPanels = [
   { id: "registrations", label: "Inscricoes", icon: ClipboardList },
   { id: "pages", label: "Paginas", icon: FileText },
 ] satisfies Array<{ id: AdminPanel; label: string; icon: LucideIcon }>;
-
-const publicPages = [
-  { title: "Home", path: "/", area: "Secretaria" },
-  { title: "Museu", path: "/museu", area: "Museu" },
-  { title: "Biblioteca", path: "/biblioteca", area: "Secretaria" },
-  { title: "Casa da Cultura", path: "/casa-da-cultura", area: "Secretaria" },
-  { title: "Inscricoes", path: "/inscricoes", area: "Secretaria" },
-  { title: "Eventos", path: "/eventos", area: "Secretaria" },
-  { title: "Acervo", path: "/acervo", area: "Museu" },
-  { title: "Sobre", path: "/sobre", area: "Museu" },
-  { title: "Visite", path: "/visite", area: "Museu" },
-  { title: "Contribua", path: "/contribua", area: "Museu" },
-] as const;
 
 const maxFlyerSize = 5 * 1024 * 1024;
 
@@ -187,9 +181,11 @@ function Admin() {
   const [events, setEvents] = useState<CulturalEvent[]>([]);
   const [flyer, setFlyer] = useState<File | null>(null);
   const [form, setForm] = useState<EventFormState>(initialEventForm);
+  const [menuVisibility, setMenuVisibility] = useState(defaultMenuVisibility);
   const [message, setMessage] = useState("");
   const [panel, setPanel] = useState<AdminPanel>("overview");
   const [saving, setSaving] = useState(false);
+  const [savingMenu, setSavingMenu] = useState(false);
   const [tokenEmail, setTokenEmail] = useState("");
   const [user, setUser] = useState<User | null>(null);
 
@@ -217,6 +213,20 @@ function Admin() {
         ...(eventDoc.data() as Omit<CulturalEvent, "id">),
       })),
     );
+
+    try {
+      const navigationSnapshot = await getDoc(
+        doc(firebaseDb, siteSettingsCollection, navigationSettingsDocId),
+      );
+      setMenuVisibility(
+        navigationSnapshot.exists()
+          ? mergeMenuVisibility(navigationSnapshot.data().items as Record<string, unknown> | undefined)
+          : defaultMenuVisibility,
+      );
+    } catch (error) {
+      console.error(error);
+      setMenuVisibility(defaultMenuVisibility);
+    }
   }
 
   useEffect(() => {
@@ -404,6 +414,38 @@ function Admin() {
     await deleteDoc(doc(firebaseDb, eventsCollection, eventId));
     setMessage("Evento removido.");
     await loadAdminData();
+  }
+
+  async function handleToggleMenuItem(path: string) {
+    if (!firebaseDb || !user?.email) return;
+
+    const nextVisibility = {
+      ...menuVisibility,
+      [path]: menuVisibility[path] === false,
+    };
+
+    setMenuVisibility(nextVisibility);
+    setSavingMenu(true);
+    setMessage("");
+
+    try {
+      await setDoc(
+        doc(firebaseDb, siteSettingsCollection, navigationSettingsDocId),
+        {
+          items: nextVisibility,
+          updatedAt: serverTimestamp(),
+          updatedBy: user.email,
+        },
+        { merge: true },
+      );
+      setMessage("Menu atualizado.");
+    } catch (error) {
+      console.error(error);
+      setMenuVisibility(menuVisibility);
+      setMessage(getFirebaseErrorMessage(error));
+    } finally {
+      setSavingMenu(false);
+    }
   }
 
   return (
@@ -852,19 +894,33 @@ function Admin() {
                     </h2>
                   </div>
                   <p className="mt-4 max-w-3xl text-sm leading-relaxed text-[#5F5D70]">
-                    Acompanhe as paginas publicas e acesse rapidamente cada uma. A edicao de texto
-                    ainda esta no codigo, mas esta area ja deixa a gestao organizada para virar CMS.
+                    Ative ou desative os itens que aparecem nos menus publicos do site. A pagina
+                    continua existindo pelo link direto, mas some da navegacao.
                   </p>
                   <div className="mt-6 grid gap-4 md:grid-cols-2">
                     {publicPages.map((page) => (
                       <article key={page.path} className="border-2 border-[#E2E2EA] p-5">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#0B86D8]">
-                          {page.area}
-                        </p>
-                        <h3 className="mt-2 font-sans text-2xl font-black text-[#24223A]">
-                          {page.title}
-                        </h3>
-                        <div className="mt-4 flex flex-wrap gap-3">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#0B86D8]">
+                              {page.area}
+                            </p>
+                            <h3 className="mt-2 font-sans text-2xl font-black text-[#24223A]">
+                              {page.title}
+                            </h3>
+                          </div>
+                          <label className="flex cursor-pointer items-center gap-3 text-sm font-semibold text-[#414296]">
+                            <input
+                              type="checkbox"
+                              checked={menuVisibility[page.path] !== false}
+                              disabled={savingMenu}
+                              onChange={() => handleToggleMenuItem(page.path)}
+                              className="h-4 w-4"
+                            />
+                            {menuVisibility[page.path] !== false ? "Ativo" : "Inativo"}
+                          </label>
+                        </div>
+                        <div className="mt-5 flex flex-wrap gap-3">
                           <a
                             href={page.path}
                             className="inline-flex items-center gap-2 border-2 border-[#414296] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#414296] transition hover:bg-[#414296] hover:text-white"
@@ -873,7 +929,7 @@ function Admin() {
                             Ver
                           </a>
                           <span className="inline-flex items-center border-2 border-[#E2E2EA] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#5F5D70]">
-                            Conteudo fixo
+                            {menuVisibility[page.path] !== false ? "No menu" : "Fora do menu"}
                           </span>
                         </div>
                       </article>
