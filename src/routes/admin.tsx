@@ -13,14 +13,16 @@ import {
 } from "firebase/firestore";
 import {
   GoogleAuthProvider,
+  getIdTokenResult,
   onAuthStateChanged,
   signInWithPopup,
   signOut,
   type User,
 } from "firebase/auth";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import {
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   ExternalLink,
   FileText,
@@ -35,13 +37,14 @@ import {
 } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
-import { SiteFooter } from "@/components/SiteHeader";
 import culturaLogo from "@/assets/cultura-logo-stacked.png";
-import { firebaseAuth, firebaseDb, firebaseStorage, isFirebaseConfigured } from "@/lib/firebase";
+import { uploadEventFlyer } from "@/lib/api/flyer.functions";
+import { firebaseAuth, firebaseDb, isFirebaseConfigured } from "@/lib/firebase";
 import {
   adminUsersCollection,
   equipmentOptions,
   eventsCollection,
+  formatEventSchedule,
   isPrimaryAdmin,
   normalizeEmail,
   primaryAdminEmail,
@@ -54,22 +57,50 @@ import {
 type AdminAccess = "loading" | "allowed" | "denied" | "signed-out";
 type AdminPanel = "overview" | "events" | "registrations" | "pages" | "admins";
 
+const calendarWeekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"] as const;
+const calendarMonthNames = [
+  "Janeiro",
+  "Fevereiro",
+  "Marco",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+] as const;
+
 type EventFormState = {
+  allDay: boolean;
   date: string;
+  description: string;
+  endTime: string;
   equipment: string[];
   name: string;
   periodAmount: string;
   periodUnit: EventPeriodUnit;
+  registrationEnabled: boolean;
+  registrationUrl: string;
   secretary: string;
+  startTime: string;
 };
 
 const initialEventForm: EventFormState = {
+  allDay: false,
   date: "",
+  description: "",
+  endTime: "",
   equipment: [],
   name: "",
   periodAmount: "1",
   periodUnit: "horas",
+  registrationEnabled: false,
+  registrationUrl: "",
   secretary: secretaryOptions[0],
+  startTime: "",
 };
 
 const adminPanels = [
@@ -91,6 +122,42 @@ const publicPages = [
   { title: "Visite", path: "/visite", area: "Museu" },
   { title: "Contribua", path: "/contribua", area: "Museu" },
 ] as const;
+
+const maxFlyerSize = 5 * 1024 * 1024;
+
+function getFirebaseErrorMessage(error: unknown) {
+  const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
+  const message =
+    typeof error === "object" && error && "message" in error ? String(error.message) : "";
+  const detail = code || message ? ` Detalhe: ${[code, message].filter(Boolean).join(" - ")}` : "";
+
+  if (code.includes("permission-denied") || code.includes("unauthorized")) {
+    return `Sem permissao para salvar. Confira se o e-mail logado esta autorizado no Firebase e se as regras foram publicadas.${detail}`;
+  }
+
+  return `Nao foi possivel cadastrar o evento. Confira o Firebase e tente novamente.${detail}`;
+}
+
+function validateFlyer(file: File) {
+  if (!file.type.startsWith("image/")) {
+    return "O flyer precisa ser uma imagem.";
+  }
+
+  if (file.size > maxFlyerSize) {
+    return "O flyer precisa ter ate 5 MB.";
+  }
+
+  return "";
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result ?? "")));
+    reader.addEventListener("error", () => reject(new Error("Nao foi possivel ler a imagem.")));
+    reader.readAsDataURL(file);
+  });
+}
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -123,6 +190,7 @@ function Admin() {
   const [message, setMessage] = useState("");
   const [panel, setPanel] = useState<AdminPanel>("overview");
   const [saving, setSaving] = useState(false);
+  const [tokenEmail, setTokenEmail] = useState("");
   const [user, setUser] = useState<User | null>(null);
 
   const canManageAdmins = isPrimaryAdmin(user?.email);
@@ -157,7 +225,10 @@ function Admin() {
       return;
     }
 
-    return onAuthStateChanged(firebaseAuth, async (currentUser) => {
+    const auth = firebaseAuth;
+    if (!auth) return;
+
+    return onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (!currentUser) {
         setAccess("signed-out");
@@ -166,6 +237,8 @@ function Admin() {
 
       setAccess("loading");
       const allowed = await checkAdminAccess(currentUser);
+      const token = await getIdTokenResult(currentUser, true);
+      setTokenEmail(String(token.claims.email ?? ""));
       setAccess(allowed ? "allowed" : "denied");
       if (allowed) await loadAdminData();
     });
@@ -182,13 +255,14 @@ function Admin() {
 
   async function handleLogin() {
     if (!firebaseAuth) return;
+    const auth = firebaseAuth;
     setMessage("");
     const provider = new GoogleAuthProvider();
     provider.addScope("email");
     provider.addScope("profile");
 
     try {
-      await signInWithPopup(firebaseAuth, provider);
+      await signInWithPopup(auth, provider);
     } catch (error) {
       console.error(error);
       setMessage("Nao foi possivel abrir o login do Google. Confira o provedor Google no Firebase.");
@@ -209,44 +283,92 @@ function Admin() {
     }));
   }
 
+  function hasAllDayConflict() {
+    return events.some((event) => event.date === form.date && event.allDay);
+  }
+
+  function hasAnyEventOnSelectedDate() {
+    return events.some((event) => event.date === form.date);
+  }
+
+  function handleFlyerChange(file: File | null) {
+    if (!file) {
+      setFlyer(null);
+      return;
+    }
+
+    const validationMessage = validateFlyer(file);
+    if (validationMessage) {
+      setFlyer(null);
+      setMessage(validationMessage);
+      return;
+    }
+
+    setMessage("");
+    setFlyer(file);
+  }
+
   async function handleCreateEvent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!firebaseDb || !user?.email) return;
+
+    if (!form.allDay && form.startTime && form.endTime && form.startTime >= form.endTime) {
+      setMessage("O horario de fim precisa ser depois do horario de inicio.");
+      return;
+    }
+
+    if (form.allDay && hasAnyEventOnSelectedDate()) {
+      setMessage("Ja existe evento nesta data. Um evento de dia todo precisa de uma data livre.");
+      return;
+    }
+
+    if (!form.allDay && hasAllDayConflict()) {
+      setMessage("Esta data ja tem um evento de dia todo. Escolha outra data.");
+      return;
+    }
 
     setSaving(true);
     setMessage("");
 
     try {
       let flyerPath = "";
-      let flyerUrl = "";
 
-      if (flyer && firebaseStorage) {
-        flyerPath = `eventos/${Date.now()}-${flyer.name}`;
-        const flyerRef = ref(firebaseStorage, flyerPath);
-        await uploadBytes(flyerRef, flyer);
-        flyerUrl = await getDownloadURL(flyerRef);
+      if (flyer) {
+        const dataUrl = await readFileAsDataUrl(flyer);
+        const uploadedFlyer = await uploadEventFlyer({
+          data: {
+            dataUrl,
+            fileName: flyer.name,
+          },
+        });
+        flyerPath = uploadedFlyer.path;
       }
 
       await addDoc(collection(firebaseDb, eventsCollection), {
+        allDay: form.allDay,
         createdAt: serverTimestamp(),
         createdBy: user.email,
         date: form.date,
+        description: form.description.trim(),
+        endTime: form.allDay ? "" : form.endTime,
         equipment: form.equipment,
         flyerPath,
-        flyerUrl,
+        flyerUrl: flyerPath,
         name: form.name.trim(),
         periodAmount: Number(form.periodAmount),
         periodUnit: form.periodUnit,
+        registrationEnabled: form.registrationEnabled,
+        registrationUrl: form.registrationEnabled ? form.registrationUrl.trim() : "",
         secretary: form.secretary,
+        startTime: form.allDay ? "" : form.startTime,
       });
-
       setForm(initialEventForm);
       setFlyer(null);
       setMessage("Evento cadastrado com sucesso.");
       await loadAdminData();
     } catch (error) {
       console.error(error);
-      setMessage("Nao foi possivel cadastrar o evento. Confira o Firebase e tente novamente.");
+      setMessage(getFirebaseErrorMessage(error));
     } finally {
       setSaving(false);
     }
@@ -450,6 +572,8 @@ function Admin() {
                       />
                     </div>
                   </section>
+
+                  <AdminCalendar events={upcomingEvents} />
                 </section>
               )}
 
@@ -462,6 +586,10 @@ function Admin() {
                         Cadastrar evento
                       </h2>
                     </div>
+                    <p className="mb-6 border-2 border-[#E2E2EA] bg-[#F8F8FB] px-4 py-3 text-sm font-semibold text-[#5F5D70]">
+                      Salvando como: {user?.email ?? "usuario nao identificado"}
+                      {tokenEmail && tokenEmail !== user?.email ? ` | Token: ${tokenEmail}` : ""}
+                    </p>
 
                     <form onSubmit={handleCreateEvent} className="grid gap-5">
                       <label className="grid gap-2 text-sm font-semibold text-[#414296]">
@@ -473,6 +601,19 @@ function Admin() {
                             setForm((current) => ({ ...current, name: event.target.value }))
                           }
                           className="border-2 border-[#E2E2EA] px-4 py-3 font-normal text-[#24223A] outline-none transition focus:border-[#0B86D8]"
+                        />
+                      </label>
+
+                      <label className="grid gap-2 text-sm font-semibold text-[#414296]">
+                        Descricao do evento
+                        <textarea
+                          required
+                          value={form.description}
+                          onChange={(event) =>
+                            setForm((current) => ({ ...current, description: event.target.value }))
+                          }
+                          rows={4}
+                          className="resize-y border-2 border-[#E2E2EA] px-4 py-3 font-normal text-[#24223A] outline-none transition focus:border-[#0B86D8]"
                         />
                       </label>
 
@@ -488,6 +629,18 @@ function Admin() {
                             }
                             className="border-2 border-[#E2E2EA] px-4 py-3 font-normal text-[#24223A] outline-none transition focus:border-[#0B86D8]"
                           />
+                        </label>
+
+                        <label className="flex items-center gap-3 border-2 border-[#E2E2EA] px-4 py-3 text-sm font-semibold text-[#414296]">
+                          <input
+                            type="checkbox"
+                            checked={form.allDay}
+                            onChange={(event) =>
+                              setForm((current) => ({ ...current, allDay: event.target.checked }))
+                            }
+                            className="h-4 w-4"
+                          />
+                          Evento de dia todo
                         </label>
 
                         <label className="grid gap-2 text-sm font-semibold text-[#414296]">
@@ -521,6 +674,42 @@ function Admin() {
                           </select>
                         </label>
                       </div>
+
+                      <div className="grid gap-5 md:grid-cols-2">
+                        <label className="grid gap-2 text-sm font-semibold text-[#414296]">
+                          Horario de inicio
+                          <input
+                            required={!form.allDay}
+                            disabled={form.allDay}
+                            type="time"
+                            value={form.startTime}
+                            onChange={(event) =>
+                              setForm((current) => ({ ...current, startTime: event.target.value }))
+                            }
+                            className="border-2 border-[#E2E2EA] px-4 py-3 font-normal text-[#24223A] outline-none transition focus:border-[#0B86D8] disabled:bg-[#F1F1F6] disabled:text-[#8A8898]"
+                          />
+                        </label>
+
+                        <label className="grid gap-2 text-sm font-semibold text-[#414296]">
+                          Horario de fim
+                          <input
+                            required={!form.allDay}
+                            disabled={form.allDay}
+                            type="time"
+                            value={form.endTime}
+                            onChange={(event) =>
+                              setForm((current) => ({ ...current, endTime: event.target.value }))
+                            }
+                            className="border-2 border-[#E2E2EA] px-4 py-3 font-normal text-[#24223A] outline-none transition focus:border-[#0B86D8] disabled:bg-[#F1F1F6] disabled:text-[#8A8898]"
+                          />
+                        </label>
+                      </div>
+
+                      {form.date && hasAllDayConflict() && !form.allDay && (
+                        <p className="border-2 border-[#EF1B2D] bg-white px-4 py-3 text-sm font-semibold text-[#EF1B2D]">
+                          Esta data ja possui um evento de dia todo.
+                        </p>
+                      )}
 
                       <label className="grid gap-2 text-sm font-semibold text-[#414296]">
                         Qual secretaria
@@ -561,6 +750,38 @@ function Admin() {
                         </div>
                       </fieldset>
 
+                      <fieldset className="grid gap-4 border-2 border-[#E2E2EA] p-5">
+                        <label className="flex items-center gap-3 text-sm font-semibold text-[#414296]">
+                          <input
+                            type="checkbox"
+                            checked={form.registrationEnabled}
+                            onChange={(event) =>
+                              setForm((current) => ({
+                                ...current,
+                                registrationEnabled: event.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4"
+                          />
+                          Habilitar inscricao para este evento
+                        </label>
+
+                        <label className="grid gap-2 text-sm font-semibold text-[#414296]">
+                          Link de inscricao
+                          <input
+                            disabled={!form.registrationEnabled}
+                            required={form.registrationEnabled}
+                            type="url"
+                            placeholder="https://..."
+                            value={form.registrationUrl}
+                            onChange={(event) =>
+                              setForm((current) => ({ ...current, registrationUrl: event.target.value }))
+                            }
+                            className="border-2 border-[#E2E2EA] px-4 py-3 font-normal text-[#24223A] outline-none transition focus:border-[#0B86D8] disabled:bg-[#F1F1F6] disabled:text-[#8A8898]"
+                          />
+                        </label>
+                      </fieldset>
+
                       <label className="grid gap-2 text-sm font-semibold text-[#414296]">
                         Flyer do evento
                         <span className="flex items-center gap-3 border-2 border-dashed border-[#BFC0D8] px-4 py-4 text-sm font-normal text-[#5F5D70]">
@@ -568,10 +789,15 @@ function Admin() {
                           <input
                             accept="image/*"
                             type="file"
-                            onChange={(event) => setFlyer(event.target.files?.[0] ?? null)}
+                            onChange={(event) => handleFlyerChange(event.target.files?.[0] ?? null)}
                             className="w-full"
                           />
                         </span>
+                        {flyer && (
+                          <span className="text-xs font-normal text-[#5F5D70]">
+                            Selecionado: {flyer.name} ({(flyer.size / 1024 / 1024).toFixed(2)} MB)
+                          </span>
+                        )}
                       </label>
 
                       <button
@@ -754,6 +980,193 @@ function AdminStatusCard({ text, title }: { text: string; title: string }) {
   );
 }
 
+function formatDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function createCalendarCells(monthDate: Date) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startDate = new Date(firstDay);
+  startDate.setDate(firstDay.getDate() - firstDay.getDay());
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + index);
+    return date;
+  });
+}
+
+function getMonthLabel(monthDate: Date) {
+  return `${calendarMonthNames[monthDate.getMonth()]} ${monthDate.getFullYear()}`;
+}
+
+function AdminCalendar({ events }: { events: CulturalEvent[] }) {
+  const [monthDate, setMonthDate] = useState(() => {
+    const firstEvent = events.find((event) => event.date);
+    if (!firstEvent?.date) return new Date();
+    const [year, month] = firstEvent.date.split("-").map(Number);
+    return new Date(year, month - 1, 1);
+  });
+  const todayKey = formatDateKey(new Date());
+  const monthKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`;
+  const cells = useMemo(() => createCalendarCells(monthDate), [monthDate]);
+  const eventsByDate = useMemo(() => {
+    return events.reduce<Record<string, CulturalEvent[]>>((current, event) => {
+      if (!event.date) return current;
+      current[event.date] = [...(current[event.date] ?? []), event].sort((a, b) =>
+        formatEventSchedule(a).localeCompare(formatEventSchedule(b)),
+      );
+      return current;
+    }, {});
+  }, [events]);
+  const visibleMonthEvents = events.filter((event) => event.date?.startsWith(monthKey)).length;
+
+  function changeMonth(offset: number) {
+    setMonthDate((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
+  }
+
+  return (
+    <section className="border-2 border-[#E2E2EA] bg-white p-6 md:p-8">
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-3">
+          <CalendarDays className="h-6 w-6 text-[#0B86D8]" />
+          <div>
+            <h2 className="font-sans text-3xl font-black text-[#414296]">Calendario</h2>
+            <p className="mt-1 text-sm text-[#5F5D70]">
+              {visibleMonthEvents} evento{visibleMonthEvents === 1 ? "" : "s"} neste mes
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => changeMonth(-1)}
+            aria-label="Mes anterior"
+            className="inline-flex h-10 w-10 items-center justify-center border-2 border-[#E2E2EA] text-[#414296] transition hover:border-[#414296]"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <p className="min-w-44 text-center text-sm font-semibold uppercase tracking-[0.16em] text-[#24223A]">
+            {getMonthLabel(monthDate)}
+          </p>
+          <button
+            type="button"
+            onClick={() => changeMonth(1)}
+            aria-label="Proximo mes"
+            className="inline-flex h-10 w-10 items-center justify-center border-2 border-[#E2E2EA] text-[#414296] transition hover:border-[#414296]"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {events.length === 0 ? (
+        <p className="text-sm text-[#5F5D70]">Nenhum evento futuro cadastrado.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <div className="min-w-[48rem]">
+            <div className="grid grid-cols-7 border-l-2 border-t-2 border-[#E2E2EA]">
+              {calendarWeekDays.map((day) => (
+                <div
+                  key={day}
+                  className="border-b-2 border-r-2 border-[#E2E2EA] bg-[#F8F8FB] px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-[#414296]"
+                >
+                  {day}
+                </div>
+              ))}
+              {cells.map((date) => {
+                const dateKey = formatDateKey(date);
+                const dayEvents = eventsByDate[dateKey] ?? [];
+                const isCurrentMonth = date.getMonth() === monthDate.getMonth();
+                const isToday = dateKey === todayKey;
+
+                return (
+                  <article
+                    key={dateKey}
+                    className={[
+                      "min-h-32 border-b-2 border-r-2 border-[#E2E2EA] p-3 transition",
+                      isCurrentMonth ? "bg-white" : "bg-[#F8F8FB] text-[#8A8898]",
+                      dayEvents.length > 0 ? "hover:bg-[#F8FBFF]" : "",
+                    ].join(" ")}
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span
+                        className={[
+                          "inline-flex h-7 w-7 items-center justify-center text-sm font-semibold",
+                          isToday ? "bg-[#414296] text-white" : "text-[#24223A]",
+                          !isCurrentMonth && !isToday ? "text-[#8A8898]" : "",
+                        ].join(" ")}
+                      >
+                        {date.getDate()}
+                      </span>
+                      {dayEvents.length > 0 && (
+                        <span className="rounded-full bg-[#0B86D8] px-2 py-0.5 text-[0.65rem] font-semibold text-white">
+                          {dayEvents.length}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid gap-1.5">
+                      {dayEvents.slice(0, 3).map((event) => (
+                        <div
+                          key={event.id}
+                          className="border-l-4 border-[#00A859] bg-[#F8FBFF] px-2 py-1.5"
+                          title={`${event.name} - ${formatEventSchedule(event)}`}
+                        >
+                          <p className="truncate text-xs font-semibold text-[#24223A]">
+                            {event.name}
+                          </p>
+                          <p className="truncate text-[0.68rem] text-[#5F5D70]">
+                            {formatEventSchedule(event)}
+                          </p>
+                        </div>
+                      ))}
+                      {dayEvents.length > 3 && (
+                        <p className="text-[0.68rem] font-semibold text-[#414296]">
+                          +{dayEvents.length - 3} evento{dayEvents.length - 3 === 1 ? "" : "s"}
+                        </p>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {events.length > 0 && (
+        <div className="mt-6 grid gap-3 md:grid-cols-2">
+          {events
+            .filter((event) => event.date?.startsWith(monthKey))
+            .slice(0, 6)
+            .map((event) => (
+              <article key={event.id} className="border-2 border-[#E2E2EA] p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#0B86D8]">
+                  {event.date}
+                </p>
+                <h3 className="mt-2 font-semibold text-[#24223A]">{event.name}</h3>
+                <p className="mt-1 text-sm text-[#5F5D70]">
+                  {formatEventSchedule(event)} - {event.secretary}
+                </p>
+              </article>
+            ))}
+          {visibleMonthEvents === 0 && (
+            <p className="text-sm text-[#5F5D70]">
+              Nenhum evento neste mes. Use as setas para navegar por outros meses.
+              </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function EventsList({
   events,
   onDelete,
@@ -789,8 +1202,13 @@ function EventsList({
                 </button>
               </div>
               <p className="mt-3 text-sm text-[#5F5D70]">
-                {event.periodAmount} {event.periodUnit} - {event.secretary}
+                {formatEventSchedule(event)} - {event.secretary}
               </p>
+              {event.description && (
+                <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-[#5F5D70]">
+                  {event.description}
+                </p>
+              )}
               {event.equipment.length > 0 && (
                 <p className="mt-2 text-sm text-[#5F5D70]">
                   Equipamentos: {event.equipment.join(", ")}

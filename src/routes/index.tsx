@@ -1,48 +1,78 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { CalendarDays, Landmark, LibraryBig, Music2, PenLine, Theater } from "lucide-react";
 import type { CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { SiteFooter, SiteHeader } from "@/components/SiteHeader";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 import culturaLogo from "@/assets/cultura-logo-horizontal.png";
 import culturaLogoStacked from "@/assets/cultura-logo-stacked.png";
+import { eventsCollection, formatEventSchedule, type CulturalEvent } from "@/lib/events";
+import { firebaseDb } from "@/lib/firebase";
 
 const areas = [
   {
     title: "Museu",
-    description: "Memória histórica, acervo permanente, exposições e visitas guiadas.",
+    description: "Memoria historica, acervo permanente, exposicoes e visitas guiadas.",
     to: "/museu",
     icon: Landmark,
     color: "#414296",
   },
   {
     title: "Biblioteca",
-    description: "Leitura, pesquisa, empréstimos, ações literárias e formação de leitores.",
+    description: "Leitura, pesquisa, emprestimos, acoes literarias e formacao de leitores.",
     to: "/biblioteca",
     icon: LibraryBig,
     color: "#00A859",
   },
   {
     title: "Casa da Cultura",
-    description: "Cursos, oficinas, apresentações e encontros para artistas e comunidade.",
+    description: "Cursos, oficinas, apresentacoes e encontros para artistas e comunidade.",
     to: "/casa-da-cultura",
     icon: Theater,
     color: "#F7A600",
   },
   {
-    title: "Inscrições",
-    description: "Editais, oficinas, chamamentos e formulários abertos ao público.",
+    title: "Inscricoes",
+    description: "Editais, oficinas, chamamentos e formularios abertos ao publico.",
     to: "/inscricoes",
     icon: PenLine,
     color: "#EF1B2D",
   },
   {
     title: "Eventos",
-    description: "Agenda cultural do município, festivais, mostras e atividades públicas.",
+    description: "Agenda cultural do municipio, festivais, mostras e atividades publicas.",
     to: "/eventos",
     icon: CalendarDays,
     color: "#0B86D8",
   },
 ] as const;
+
+function addDays(date: Date, days: number) {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+}
+
+function getTodayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function uniqueEvents(events: CulturalEvent[]) {
+  const seen = new Set<string>();
+  return events.filter((event) => {
+    if (seen.has(event.id)) return false;
+    seen.add(event.id);
+    return true;
+  });
+}
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -51,12 +81,12 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Portal da Secretaria Municipal de Cultura de Siqueira Campos: museu, biblioteca, casa da cultura, inscrições e eventos.",
+          "Portal da Secretaria Municipal de Cultura de Siqueira Campos: museu, biblioteca, casa da cultura, inscricoes e eventos.",
       },
       { property: "og:title", content: "Secretaria Municipal de Cultura de Siqueira Campos" },
       {
         property: "og:description",
-        content: "Cultura, memória, leitura e criação no Norte Pioneiro do Paraná.",
+        content: "Cultura, memoria, leitura e criacao no Norte Pioneiro do Parana.",
       },
       { property: "og:image", content: culturaLogo },
     ],
@@ -65,11 +95,52 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const [events, setEvents] = useState<CulturalEvent[]>([]);
+  const [eventsError, setEventsError] = useState("");
+  const [eventsLoading, setEventsLoading] = useState(Boolean(firebaseDb));
+
+  useEffect(() => {
+    async function loadEvents() {
+      if (!firebaseDb) {
+        setEventsLoading(false);
+        return;
+      }
+
+      const snapshot = await getDocs(query(collection(firebaseDb, eventsCollection), orderBy("date", "asc")));
+      setEvents(
+        snapshot.docs.map((eventDoc) => ({
+          id: eventDoc.id,
+          ...(eventDoc.data() as Omit<CulturalEvent, "id">),
+        })),
+      );
+      setEventsLoading(false);
+    }
+
+    loadEvents().catch((error) => {
+      console.error(error);
+      setEventsError("Nao foi possivel carregar os eventos em destaque.");
+      setEventsLoading(false);
+    });
+  }, []);
+
+  const featuredEvents = useMemo(() => {
+    const today = getTodayDate();
+    const weekLimit = addDays(new Date(), 7).toISOString().slice(0, 10);
+    const currentMonth = today.slice(0, 7);
+    const futureEvents = events
+      .filter((event) => !event.date || event.date >= today)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const weekEvents = futureEvents.filter((event) => event.date <= weekLimit);
+    const monthEvents = futureEvents.filter((event) => event.date.startsWith(currentMonth));
+
+    return uniqueEvents([...weekEvents, ...monthEvents, ...futureEvents]).slice(0, 6);
+  }, [events]);
+
   return (
     <div className="min-h-screen bg-white text-[#24223A]">
       <section className="relative min-h-[88vh] overflow-hidden bg-white">
         <SiteHeader />
-        <div className="absolute inset-x-0 bottom-0 h-3 grid grid-cols-5">
+        <div className="absolute inset-x-0 bottom-0 grid h-3 grid-cols-5">
           <div className="bg-[#414296]" />
           <div className="bg-[#00A859]" />
           <div className="bg-[#F7A600]" />
@@ -80,14 +151,14 @@ function Index() {
           <div className="md:col-span-7">
             <p className="mb-6 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.32em] text-[#00A859]">
               <Music2 className="h-4 w-4" />
-              Siqueira Campos · Paraná
+              Siqueira Campos - Parana
             </p>
             <h1 className="max-w-4xl font-sans text-5xl font-black leading-[0.96] tracking-normal text-[#414296] md:text-7xl lg:text-[5.4rem]">
               Secretaria Municipal de Cultura
             </h1>
             <p className="mt-8 max-w-2xl text-lg leading-relaxed text-[#4B4A5F] md:text-xl">
-              Um portal para reunir espaços culturais, ações formativas, eventos, inscrições e
-              serviços públicos de cultura do município.
+              Um portal para reunir espacos culturais, acoes formativas, eventos, inscricoes e
+              servicos publicos de cultura do municipio.
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
               <Link
@@ -100,7 +171,7 @@ function Index() {
                 to="/inscricoes"
                 className="inline-flex items-center justify-center border-2 border-[#414296] px-7 py-4 text-xs font-semibold uppercase tracking-[0.22em] text-[#414296] transition hover:border-[#00A859] hover:text-[#00A859]"
               >
-                Inscrições abertas
+                Inscricoes abertas
               </Link>
             </div>
           </div>
@@ -119,15 +190,15 @@ function Index() {
       <section className="border-b border-[#E7E7EF] bg-[#F8F8FB]">
         <div className="mx-auto grid max-w-7xl gap-12 px-6 py-20 md:grid-cols-12 md:px-10 md:py-28">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#EF1B2D] md:col-span-3">
-            — A Secretaria
+            A Secretaria
           </p>
           <div className="md:col-span-9">
             <h2 className="max-w-4xl font-sans text-4xl font-black leading-tight tracking-normal text-[#414296] md:text-5xl">
-              Cultura como serviço público, memória coletiva e espaço de participação.
+              Cultura como servico publico, memoria coletiva e espaco de participacao.
             </h2>
             <p className="mt-8 max-w-3xl text-lg leading-relaxed text-[#4B4A5F]">
-              A Secretaria Municipal de Cultura conecta equipamentos públicos, ações educativas,
-              preservação do patrimônio, incentivo à leitura e programação artística para fortalecer
+              A Secretaria Municipal de Cultura conecta equipamentos publicos, acoes educativas,
+              preservacao do patrimonio, incentivo a leitura e programacao artistica para fortalecer
               a vida cultural de Siqueira Campos.
             </p>
           </div>
@@ -138,10 +209,10 @@ function Index() {
         <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-28">
           <div className="mb-12">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#00A859]">
-              — Áreas
+              Areas
             </p>
             <h2 className="mt-4 font-sans text-4xl font-black tracking-normal text-[#414296] md:text-5xl">
-              Acesse os espaços culturais
+              Acesse os espacos culturais
             </h2>
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
@@ -167,35 +238,82 @@ function Index() {
       </section>
 
       <section className="bg-[#414296] text-white">
-        <div className="mx-auto grid max-w-7xl gap-10 px-6 py-20 md:grid-cols-3 md:px-10 md:py-24">
-          {[
-            {
-              n: "01",
-              t: "Patrimônio e memória",
-              d: "Preservação do museu, acervos, registros e narrativas da cidade.",
-              color: "#F7A600",
-            },
-            {
-              n: "02",
-              t: "Formação cultural",
-              d: "Oficinas, leitura, ações educativas e atividades para diferentes públicos.",
-              color: "#00A859",
-            },
-            {
-              n: "03",
-              t: "Agenda pública",
-              d: "Eventos, chamadas, inscrições e oportunidades culturais em um só lugar.",
-              color: "#EF1B2D",
-            },
-          ].map((item) => (
-            <div key={item.n} className="border-t border-white/30 pt-6">
-              <p className="text-3xl font-black" style={{ color: item.color }}>
-                {item.n}
+        <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-24">
+          <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#F7A600]">
+                Destaques
               </p>
-              <h3 className="mt-6 font-sans text-2xl font-black tracking-normal">{item.t}</h3>
-              <p className="mt-3 text-white/75">{item.d}</p>
+              <h2 className="mt-4 font-sans text-4xl font-black tracking-normal md:text-5xl">
+                Eventos da semana
+              </h2>
             </div>
-          ))}
+            <Link
+              to="/eventos"
+              className="inline-flex w-fit items-center justify-center border-2 border-white/70 px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:border-[#F7A600] hover:text-[#F7A600]"
+            >
+              Ver agenda
+            </Link>
+          </div>
+
+          {eventsLoading ? (
+            <p className="border-2 border-white/25 p-6 text-sm text-white/75">
+              Carregando eventos em destaque...
+            </p>
+          ) : eventsError ? (
+            <p className="border-2 border-[#EF1B2D] p-6 text-sm font-semibold text-white">
+              {eventsError}
+            </p>
+          ) : featuredEvents.length === 0 ? (
+            <p className="border-2 border-white/25 p-6 text-sm text-white/75">
+              Nenhum evento futuro cadastrado no momento.
+            </p>
+          ) : (
+            <Carousel opts={{ align: "start" }} className="px-0 md:px-12">
+              <CarouselContent>
+                {featuredEvents.map((event) => (
+                  <CarouselItem key={event.id} className="md:basis-1/2 lg:basis-1/3">
+                    <a
+                      href={`/eventos?evento=${event.id}`}
+                      className="group block min-h-[28rem] overflow-hidden border-2 border-white/20 bg-white text-[#24223A] transition hover:-translate-y-1 hover:border-[#F7A600]"
+                    >
+                      {event.flyerUrl ? (
+                        <img
+                          src={event.flyerUrl}
+                          alt={`Flyer do evento ${event.name}`}
+                          className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex aspect-[4/3] items-center justify-center bg-[#F8FBFF] p-6 text-center">
+                          <CalendarDays className="h-12 w-12 text-[#0B86D8]" />
+                        </div>
+                      )}
+                      <div className="p-6">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#0B86D8]">
+                          {event.date}
+                        </p>
+                        <h3 className="mt-3 font-sans text-2xl font-black leading-tight text-[#24223A]">
+                          {event.name}
+                        </h3>
+                        <p className="mt-4 text-sm font-semibold text-[#5F5D70]">
+                          {formatEventSchedule(event)}
+                        </p>
+                        <p className="mt-2 text-sm text-[#5F5D70]">{event.secretary}</p>
+                        {event.description && (
+                          <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-[#5F5D70]">
+                            {event.description}
+                          </p>
+                        )}
+                      </div>
+                    </a>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="hidden border-white/40 bg-white text-[#414296] hover:bg-[#F7A600] md:inline-flex" />
+              <CarouselNext className="hidden border-white/40 bg-white text-[#414296] hover:bg-[#F7A600] md:inline-flex" />
+            </Carousel>
+          )}
         </div>
       </section>
 

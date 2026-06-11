@@ -176,6 +176,35 @@ export function SiteHeader() {
   );
 }
 
+export function SecretariaHeader() {
+  return (
+    <header className="border-b border-[#E7E7EF] bg-white">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 md:px-10">
+        <Link to="/" className="block" aria-label="Secretaria Municipal de Cultura">
+          <img
+            src={culturaLogo}
+            alt="Secretaria Municipal de Cultura de Siqueira Campos"
+            className="h-12 w-auto object-contain md:h-16"
+          />
+        </Link>
+        <nav className="hidden items-center gap-6 text-xs font-semibold uppercase tracking-[0.16em] text-[#414296] md:flex">
+          {secretariaMenuItems.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              activeProps={{ className: "text-[#00A859]" }}
+              className="transition hover:text-[#00A859]"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+        <MobileMenu items={secretariaMenuItems} variant="secretaria" />
+      </div>
+    </header>
+  );
+}
+
 export function PageHeader({ menu = "secretaria" }: { menu?: MobileMenuVariant }) {
   const items = menu === "museu" ? museumMenuItems : secretariaMenuItems;
   const isMuseum = menu === "museu";

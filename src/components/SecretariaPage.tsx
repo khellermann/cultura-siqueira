@@ -18,6 +18,8 @@ type SecretariaPageProps = {
   children?: ReactNode;
   description: string;
   eyebrow: string;
+  heroContent?: ReactNode;
+  heroVisual?: ReactNode;
   icon: LucideIcon;
   title: string;
 };
@@ -28,6 +30,8 @@ export function SecretariaPage({
   children,
   description,
   eyebrow,
+  heroContent,
+  heroVisual,
   icon: Icon,
   title,
 }: SecretariaPageProps) {
@@ -44,56 +48,62 @@ export function SecretariaPage({
         </div>
 
         <div className="mx-auto grid min-h-[76vh] max-w-7xl items-center gap-12 px-6 pb-20 pt-32 md:grid-cols-12 md:px-10 md:pt-36">
-          <div className="md:col-span-7">
-            <p
-              className="mb-6 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.32em]"
-              style={{ color: accentColor }}
-            >
-              <Icon className="h-4 w-4" />
-              {eyebrow}
-            </p>
-            <h1 className="max-w-4xl font-sans text-5xl font-black leading-[0.98] tracking-normal text-[#414296] md:text-7xl">
-              {title}
-            </h1>
-            <p className="mt-8 max-w-2xl text-lg leading-relaxed text-[#4B4A5F] md:text-xl">
-              {description}
-            </p>
-            <div className="mt-10 flex flex-wrap gap-4">
-              <Link
-                to="/"
-                className="inline-flex items-center justify-center bg-[#414296] px-7 py-4 text-xs font-semibold uppercase tracking-[0.22em] text-white transition hover:bg-[#00A859]"
-              >
-                Voltar para Home
-              </Link>
-              <Link
-                to="/eventos"
-                className="inline-flex items-center justify-center border-2 border-[#414296] px-7 py-4 text-xs font-semibold uppercase tracking-[0.22em] text-[#414296] transition hover:border-[#00A859] hover:text-[#00A859]"
-              >
-                Ver eventos
-              </Link>
-            </div>
-          </div>
-
-          <div className="md:col-span-5">
-            <div
-              className="relative mx-auto max-w-[28rem] border-2 bg-white p-8 shadow-[0_24px_70px_rgba(65,66,150,0.12)]"
-              style={{ borderColor: accentColor } as CSSProperties}
-            >
-              <img
-                src={culturaLogoStacked}
-                alt="Marca da Secretaria Municipal de Cultura"
-                className="w-full object-contain"
-                width={1800}
-                height={1500}
-              />
-              <div
-                className="absolute -bottom-5 -right-5 flex h-20 w-20 items-center justify-center text-white"
-                style={{ backgroundColor: accentColor }}
-              >
-                <Icon className="h-9 w-9" />
+          {heroContent ?? (
+            <>
+              <div className="md:col-span-7">
+                <p
+                  className="mb-6 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.32em]"
+                  style={{ color: accentColor }}
+                >
+                  <Icon className="h-4 w-4" />
+                  {eyebrow}
+                </p>
+                <h1 className="max-w-4xl font-sans text-5xl font-black leading-[0.98] tracking-normal text-[#414296] md:text-7xl">
+                  {title}
+                </h1>
+                <p className="mt-8 max-w-2xl text-lg leading-relaxed text-[#4B4A5F] md:text-xl">
+                  {description}
+                </p>
+                <div className="mt-10 flex flex-wrap gap-4">
+                  <Link
+                    to="/"
+                    className="inline-flex items-center justify-center bg-[#414296] px-7 py-4 text-xs font-semibold uppercase tracking-[0.22em] text-white transition hover:bg-[#00A859]"
+                  >
+                    Voltar para Home
+                  </Link>
+                  <Link
+                    to="/eventos"
+                    className="inline-flex items-center justify-center border-2 border-[#414296] px-7 py-4 text-xs font-semibold uppercase tracking-[0.22em] text-[#414296] transition hover:border-[#00A859] hover:text-[#00A859]"
+                  >
+                    Ver eventos
+                  </Link>
+                </div>
               </div>
-            </div>
-          </div>
+
+              <div className="md:col-span-5">
+                {heroVisual ?? (
+                  <div
+                    className="relative mx-auto max-w-[28rem] border-2 bg-white p-8 shadow-[0_24px_70px_rgba(65,66,150,0.12)]"
+                    style={{ borderColor: accentColor } as CSSProperties}
+                  >
+                    <img
+                      src={culturaLogoStacked}
+                      alt="Marca da Secretaria Municipal de Cultura"
+                      className="w-full object-contain"
+                      width={1800}
+                      height={1500}
+                    />
+                    <div
+                      className="absolute -bottom-5 -right-5 flex h-20 w-20 items-center justify-center text-white"
+                      style={{ backgroundColor: accentColor }}
+                    >
+                      <Icon className="h-9 w-9" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </section>
 

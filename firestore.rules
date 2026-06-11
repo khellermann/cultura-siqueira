@@ -2,31 +2,37 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() {
-      return request.auth != null && request.auth.token.email != null;
+    function signedIn() { return request.auth != null; }
+    function admin() {
+      return signedIn() && request.auth.token.email == "khellermann@gmail.com";
     }
 
-    function normalizedEmail() {
-      return lower(request.auth.token.email);
+    match /profiles/{userId} {
+      allow create: if signedIn() && request.auth.uid == userId;
+      allow read: if signedIn() && (request.auth.uid == userId || admin());
+      allow update, delete: if admin();
     }
 
-    function isPrimaryAdmin() {
-      return signedIn() && normalizedEmail() == "khellermann@gmail.com";
+    match /visitantes/{id} {
+      allow create: if true;
+      allow read, update: if signedIn();
+      allow delete: if admin();
     }
 
-    function isAdmin() {
-      return isPrimaryAdmin()
-        || (signedIn() && exists(/databases/$(database)/documents/admin_users/$(normalizedEmail())));
+    match /pesquisas_satisfacao/{id} {
+      allow create: if true;
+      allow read: if signedIn();
+      allow update, delete: if admin();
     }
 
     match /events/{eventId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if admin();
     }
 
     match /admin_users/{email} {
-      allow read: if isAdmin();
-      allow create, update, delete: if isPrimaryAdmin();
+      allow read: if admin();
+      allow create, update, delete: if admin();
     }
   }
 }
