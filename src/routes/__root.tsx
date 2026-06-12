@@ -11,6 +11,60 @@ import { useEffect, type ReactNode } from "react";
 import { CulturalNotFound } from "@/components/CulturalNotFound";
 import appCss from "../styles.css?url";
 
+function ScrollReveal() {
+  useEffect(() => {
+    const selector = [
+      "main section",
+      "main article",
+      "section > div > article",
+      "section > div > div > article",
+      "[data-scroll-reveal]",
+    ].join(", ");
+
+    const prepareElements = () => {
+      const elements = Array.from(document.querySelectorAll<HTMLElement>(selector)).filter(
+        (element) =>
+          !element.closest("[role='dialog']") &&
+          !element.closest("header") &&
+          !element.closest("footer") &&
+          !element.classList.contains("scroll-reveal"),
+      );
+
+      elements.forEach((element, index) => {
+        element.classList.add("scroll-reveal", index % 2 === 0 ? "scroll-reveal-left" : "scroll-reveal-right");
+      });
+      return elements;
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("scroll-reveal-visible");
+          observer.unobserve(entry.target);
+        });
+      },
+      {
+        rootMargin: "0px 0px -12% 0px",
+        threshold: 0.12,
+      },
+    );
+
+    const observe = () => prepareElements().forEach((element) => observer.observe(element));
+    observe();
+
+    const mutationObserver = new MutationObserver(observe);
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      mutationObserver.disconnect();
+    };
+  }, []);
+
+  return null;
+}
+
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
@@ -105,6 +159,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <ScrollReveal />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
     </QueryClientProvider>

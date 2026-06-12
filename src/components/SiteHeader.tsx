@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import culturaLogo from "@/assets/cultura-logo-horizontal.png";
 import museuLogo from "@/assets/museu-logo.png";
+import { cultureContact, formatPhones } from "@/lib/contact";
 import { firebaseDb } from "@/lib/firebase";
 import {
   defaultMenuVisibility,
@@ -263,9 +264,17 @@ export function SiteFooter() {
         </div>
         <div className="text-sm">
           <p className="uppercase tracking-[0.2em] text-muted-foreground">Contato</p>
-          <p className="mt-3">Centro - Siqueira Campos - PR</p>
-          <p>(43) 0000-0000</p>
-          <p>cultura@siqueiracampos.pr.gov.br</p>
+          <p className="mt-3">{cultureContact.addressLine1}</p>
+          <p>{cultureContact.addressLine2}</p>
+          <p className="mt-3">{formatPhones()}</p>
+          <div className="mt-3 space-y-1 text-muted-foreground">
+            {cultureContact.extensions.map((extension) => (
+              <p key={extension.number}>
+                Ramal {extension.number} - {extension.label}
+              </p>
+            ))}
+          </div>
+          <p className="mt-3">{cultureContact.email}</p>
         </div>
       </div>
       <div className="border-t border-border py-5 text-center text-xs uppercase tracking-[0.2em] text-muted-foreground">

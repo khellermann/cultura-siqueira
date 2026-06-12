@@ -14,8 +14,16 @@ import {
 } from "@/components/ui/carousel";
 import culturaLogo from "@/assets/cultura-logo-horizontal.png";
 import culturaLogoStacked from "@/assets/cultura-logo-stacked.png";
-import { eventsCollection, formatEventSchedule, type CulturalEvent } from "@/lib/events";
+import {
+  eventsCollection,
+  expandEventOccurrences,
+  formatEventRecurrence,
+  formatEventSchedule,
+  formatEventVenue,
+  type CulturalEvent,
+} from "@/lib/events";
 import { firebaseDb } from "@/lib/firebase";
+import { richTextToPlainText } from "@/lib/richText";
 
 const areas = [
   {
@@ -126,9 +134,9 @@ function Index() {
   const featuredEvents = useMemo(() => {
     const today = getTodayDate();
     const weekLimit = addDays(new Date(), 7).toISOString().slice(0, 10);
+    const rangeEnd = addDays(new Date(), 180).toISOString().slice(0, 10);
     const currentMonth = today.slice(0, 7);
-    const futureEvents = events
-      .filter((event) => !event.date || event.date >= today)
+    const futureEvents = expandEventOccurrences(events, today, rangeEnd)
       .sort((a, b) => a.date.localeCompare(b.date));
     const weekEvents = futureEvents.filter((event) => event.date <= weekLimit);
     const monthEvents = futureEvents.filter((event) => event.date.startsWith(currentMonth));
@@ -272,7 +280,7 @@ function Index() {
             <Carousel opts={{ align: "start" }} className="px-0 md:px-12">
               <CarouselContent>
                 {featuredEvents.map((event) => (
-                  <CarouselItem key={event.id} className="md:basis-1/2 lg:basis-1/3">
+                  <CarouselItem key={event.occurrenceId ?? event.id} className="md:basis-1/2 lg:basis-1/3">
                     <a
                       href={`/eventos?evento=${event.id}`}
                       className="group block min-h-[28rem] overflow-hidden border-2 border-white/20 bg-white text-[#24223A] transition hover:-translate-y-1 hover:border-[#F7A600]"
@@ -299,10 +307,16 @@ function Index() {
                         <p className="mt-4 text-sm font-semibold text-[#5F5D70]">
                           {formatEventSchedule(event)}
                         </p>
+                        {formatEventRecurrence(event) && (
+                          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#00A859]">
+                            {formatEventRecurrence(event)}
+                          </p>
+                        )}
+                        <p className="mt-2 text-sm text-[#5F5D70]">{formatEventVenue(event)}</p>
                         <p className="mt-2 text-sm text-[#5F5D70]">{event.secretary}</p>
                         {event.description && (
                           <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-[#5F5D70]">
-                            {event.description}
+                            {richTextToPlainText(event.description)}
                           </p>
                         )}
                       </div>

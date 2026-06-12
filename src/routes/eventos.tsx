@@ -22,7 +22,15 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { firebaseDb, isFirebaseConfigured } from "@/lib/firebase";
-import { eventsCollection, formatEventSchedule, type CulturalEvent } from "@/lib/events";
+import {
+  eventsCollection,
+  expandEventOccurrences,
+  formatEventRecurrence,
+  formatEventSchedule,
+  formatEventVenue,
+  type CulturalEvent,
+} from "@/lib/events";
+import { richTextToPlainText, sanitizeRichText } from "@/lib/richText";
 
 function addDays(date: Date, days: number) {
   const nextDate = new Date(date);
@@ -92,8 +100,9 @@ function Eventos() {
 
   const visibleEvents = useMemo(() => {
     const today = getTodayDate();
-    return events
-      .filter((event) => !event.date || event.date >= today)
+    const rangeEnd = addDays(new Date(), 180).toISOString().slice(0, 10);
+
+    return expandEventOccurrences(events, today, rangeEnd)
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [events]);
   const featuredEvents = useMemo(() => {
@@ -213,7 +222,7 @@ function Eventos() {
                       <div className="grid gap-3">
                         {dayEvents.map((event) => (
                           <a
-                            key={event.id}
+                            key={event.occurrenceId ?? event.id}
                             href={`/eventos?evento=${event.id}`}
                             className="flex flex-col gap-1 border-l-4 border-[#00A859] pl-4 text-sm transition hover:text-[#414296]"
                           >
@@ -230,7 +239,7 @@ function Eventos() {
               <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
                 {visibleEvents.map((event) => (
                   <article
-                    key={event.id}
+                    key={event.occurrenceId ?? event.id}
                     className="overflow-hidden border-2 border-[#E7E7EF] bg-white transition duration-300 hover:-translate-y-1 hover:border-[#0B86D8] hover:shadow-[0_18px_40px_rgba(65,66,150,0.14)]"
                   >
                     {event.flyerUrl && (
@@ -263,11 +272,20 @@ function Eventos() {
                       <p className="mt-4 text-sm leading-relaxed text-[#5F5D70]">
                         {formatEventSchedule(event)}
                       </p>
+                      {formatEventRecurrence(event) && (
+                        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#00A859]">
+                          {formatEventRecurrence(event)}
+                        </p>
+                      )}
+                      <p className="mt-2 text-sm leading-relaxed text-[#5F5D70]">
+                        {formatEventVenue(event)}
+                      </p>
                       <p className="mt-2 text-sm leading-relaxed text-[#5F5D70]">{event.secretary}</p>
                       {event.description && (
-                        <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-[#5F5D70]">
-                          {event.description}
-                        </p>
+                        <EventDescriptionSummary
+                          className="mt-3 line-clamp-3 text-sm leading-relaxed text-[#5F5D70]"
+                          description={event.description}
+                        />
                       )}
                       <a
                         href={`/eventos?evento=${event.id}`}
@@ -360,7 +378,7 @@ function EventHighlightsCarousel({
       <Carousel opts={{ align: "start", loop: events.length > 1 }} className="px-0">
         <CarouselContent>
           {events.map((event) => (
-            <CarouselItem key={event.id} className={full ? "md:basis-1/2 lg:basis-1/3" : ""}>
+            <CarouselItem key={event.occurrenceId ?? event.id} className={full ? "md:basis-1/2 lg:basis-1/3" : ""}>
               <a
                 href={`/eventos?evento=${event.id}`}
                 className={[
@@ -390,10 +408,17 @@ function EventHighlightsCarousel({
                   <p className="mt-3 text-sm font-semibold text-[#5F5D70]">
                     {formatEventSchedule(event)}
                   </p>
-                  {event.description && (
-                    <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-[#5F5D70]">
-                      {event.description}
+                  {formatEventRecurrence(event) && (
+                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#00A859]">
+                      {formatEventRecurrence(event)}
                     </p>
+                  )}
+                  <p className="mt-2 text-sm text-[#5F5D70]">{formatEventVenue(event)}</p>
+                  {event.description && (
+                    <EventDescriptionSummary
+                      className="mt-3 line-clamp-2 text-sm leading-relaxed text-[#5F5D70]"
+                      description={event.description}
+                    />
                   )}
                 </div>
               </a>
@@ -463,14 +488,27 @@ function EventDetailPage({
                       <Clock className="h-4 w-4 text-[#00A859]" />
                       {formatEventSchedule(event)}
                     </span>
+                    <span className="inline-flex items-center gap-2 border-2 border-[#E7E7EF] px-4 py-3">
+                      <MapPin className="h-4 w-4 text-[#F7A600]" />
+                      {formatEventVenue(event)}
+                    </span>
                   </div>
+                  {formatEventRecurrence(event) && (
+                    <p className="mt-4 text-sm font-semibold text-[#00A859]">
+                      {formatEventRecurrence(event)}
+                    </p>
+                  )}
 
                   <div className="mt-10 grid gap-6">
                     <section>
                       <h2 className="font-sans text-3xl font-black text-[#24223A]">Sobre</h2>
-                      <p className="mt-4 text-base leading-8 text-[#5F5D70]">
-                        {event.description || "Mais informacoes sobre este evento serao divulgadas em breve."}
-                      </p>
+                      {event.description ? (
+                        <EventDescription description={event.description} />
+                      ) : (
+                        <p className="mt-4 text-base leading-8 text-[#5F5D70]">
+                          Mais informacoes sobre este evento serao divulgadas em breve.
+                        </p>
+                      )}
                     </section>
 
                     <section className="border-l-4 border-[#F7A600] pl-5">
@@ -537,7 +575,7 @@ function EventDetailPage({
                 <div className="grid gap-4 md:grid-cols-3">
                   {upcomingEvents.map((upcomingEvent) => (
                     <a
-                      key={upcomingEvent.id}
+                      key={upcomingEvent.occurrenceId ?? upcomingEvent.id}
                       href={`/eventos?evento=${upcomingEvent.id}`}
                       className="border-2 border-[#E7E7EF] p-5 transition hover:-translate-y-1 hover:border-[#0B86D8] hover:shadow-[0_18px_40px_rgba(65,66,150,0.12)]"
                     >
@@ -568,6 +606,25 @@ function EventDetailPage({
       <SiteFooter />
     </div>
   );
+}
+
+function EventDescription({ description }: { description: string }) {
+  return (
+    <div
+      className="mt-4 text-base leading-8 text-[#5F5D70] [&_a]:font-semibold [&_a]:text-[#414296] [&_a]:underline [&_blockquote]:border-l-4 [&_blockquote]:border-[#F7A600] [&_blockquote]:pl-4 [&_h2]:font-sans [&_h2]:text-3xl [&_h2]:font-black [&_h2]:leading-tight [&_h2]:text-[#414296] [&_h3]:font-sans [&_h3]:text-2xl [&_h3]:font-black [&_h3]:leading-tight [&_h3]:text-[#24223A] [&_h4]:font-sans [&_h4]:text-xl [&_h4]:font-black [&_h4]:text-[#24223A] [&_li]:ml-6 [&_ol]:list-decimal [&_p]:my-3 [&_ul]:list-disc"
+      dangerouslySetInnerHTML={{ __html: sanitizeRichText(description) }}
+    />
+  );
+}
+
+function EventDescriptionSummary({
+  className,
+  description,
+}: {
+  className: string;
+  description: string;
+}) {
+  return <p className={className}>{richTextToPlainText(description)}</p>;
 }
 
 function ImageLightbox({
