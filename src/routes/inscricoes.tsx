@@ -9,6 +9,7 @@ import { firebaseDb, isFirebaseConfigured } from "@/lib/firebase";
 import {
   formatOpportunityType,
   getDefaultRegistrationFields,
+  getOpportunityDocuments,
   isRegistrationOpportunityOpen,
   registrationOpportunitiesCollection,
   registrationsCollection,
@@ -354,13 +355,23 @@ function Inscricoes() {
                   className="mb-6 h-56 w-full object-cover"
                 />
               )}
-              {selectedOpportunity?.documentUrl && (
-                <a
-                  href={selectedOpportunity.documentUrl}
-                  className="mb-6 inline-flex items-center gap-2 border-2 border-[#414296] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#414296] transition hover:bg-[#414296] hover:text-white"
-                >
-                  Ver PDF do edital
-                </a>
+              {selectedOpportunity && getOpportunityDocuments(selectedOpportunity).length > 0 && (
+                <div className="mb-6 grid gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#414296]">
+                    Anexos do edital
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {getOpportunityDocuments(selectedOpportunity).map((documentItem, index) => (
+                      <a
+                        key={documentItem.url}
+                        href={documentItem.url}
+                        className="inline-flex items-center gap-2 border-2 border-[#414296] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#414296] transition hover:bg-[#414296] hover:text-white"
+                      >
+                        {documentItem.name || `Anexo ${index + 1}`}
+                      </a>
+                    ))}
+                  </div>
+                </div>
               )}
               <div className="flex items-center gap-3">
                 <ClipboardList className="h-6 w-6 text-[#EF1B2D]" />

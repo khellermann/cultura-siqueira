@@ -51,6 +51,13 @@ function uniqueEvents(events: CulturalEvent[]) {
   });
 }
 
+function getPublicEventOccurrence(event: CulturalEvent, today: string, rangeEnd: string) {
+  const occurrences = expandEventOccurrences([event], today, rangeEnd);
+  if (occurrences.length === 0) return undefined;
+
+  return occurrences[0];
+}
+
 export const Route = createFileRoute("/eventos")({
   head: () => ({
     meta: [
@@ -102,7 +109,9 @@ function Eventos() {
     const today = getTodayDate();
     const rangeEnd = addDays(new Date(), 180).toISOString().slice(0, 10);
 
-    return expandEventOccurrences(events, today, rangeEnd)
+    return events
+      .map((event) => getPublicEventOccurrence(event, today, rangeEnd))
+      .filter((event): event is CulturalEvent => Boolean(event))
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [events]);
   const featuredEvents = useMemo(() => {
@@ -192,7 +201,7 @@ function Eventos() {
               </h2>
             </div>
             <p className="max-w-xl text-sm leading-relaxed text-[#5F5D70]">
-              Eventos cadastrados pela area administrativa da Secretaria.
+              Eventos cadastrados pela area administrativa da Secretaria. Atividades recorrentes aparecem uma vez, com a proxima data e a frequencia.
             </p>
           </div>
 

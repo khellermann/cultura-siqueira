@@ -21,6 +21,12 @@ export type RegistrationFieldConfig = {
   required: boolean;
 };
 
+export type RegistrationOpportunityDocument = {
+  name: string;
+  path: string;
+  url: string;
+};
+
 export type RegistrationOpportunity = {
   active: boolean;
   bannerPath?: string;
@@ -28,6 +34,7 @@ export type RegistrationOpportunity = {
   createdAt?: unknown;
   createdBy?: string;
   description: string;
+  documents?: RegistrationOpportunityDocument[];
   documentPath?: string;
   documentUrl?: string;
   endDate: string;
@@ -65,6 +72,24 @@ export function formatOpportunityType(type: RegistrationOpportunityType) {
   } satisfies Record<RegistrationOpportunityType, string>;
 
   return labels[type];
+}
+
+export function getOpportunityDocuments(opportunity: RegistrationOpportunity) {
+  if (opportunity.documents?.length) {
+    return opportunity.documents;
+  }
+
+  if (!opportunity.documentUrl) {
+    return [];
+  }
+
+  return [
+    {
+      name: "PDF do edital",
+      path: opportunity.documentPath ?? opportunity.documentUrl,
+      url: opportunity.documentUrl,
+    },
+  ];
 }
 
 export function getRegistrationSharePath(opportunityId: string) {

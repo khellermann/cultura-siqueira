@@ -83,6 +83,7 @@ import {
 import {
   formatOpportunityType,
   getDefaultRegistrationFields,
+  getOpportunityDocuments,
   getRegistrationSharePath,
   registrationFieldOptions,
   registrationOpportunitiesCollection,
@@ -92,6 +93,7 @@ import {
   registrationsCollection,
   type RegistrationEntry,
   type RegistrationOpportunity,
+  type RegistrationOpportunityDocument,
   type RegistrationOpportunityType,
 } from "@/lib/registrations";
 
@@ -139,8 +141,7 @@ type OpportunityFormState = {
   bannerPath: string;
   bannerUrl: string;
   description: string;
-  documentPath: string;
-  documentUrl: string;
+  documents: RegistrationOpportunityDocument[];
   endDate: string;
   fields: RegistrationFieldConfig[];
   registrationUrl: string;
@@ -174,8 +175,7 @@ const initialOpportunityForm: OpportunityFormState = {
   bannerPath: "",
   bannerUrl: "",
   description: "",
-  documentPath: "",
-  documentUrl: "",
+  documents: [],
   endDate: "",
   fields: getDefaultRegistrationFields("oficina"),
   registrationUrl: "",
@@ -323,7 +323,7 @@ function Admin() {
   const [message, setMessage] = useState("");
   const [editingOpportunityId, setEditingOpportunityId] = useState("");
   const [opportunityBanner, setOpportunityBanner] = useState<File | null>(null);
-  const [opportunityDocument, setOpportunityDocument] = useState<File | null>(null);
+  const [opportunityDocuments, setOpportunityDocuments] = useState<File[]>([]);
   const [opportunities, setOpportunities] = useState<RegistrationOpportunity[]>([]);
   const [opportunityForm, setOpportunityForm] =
     useState<OpportunityFormState>(initialOpportunityForm);
@@ -429,12 +429,12 @@ function Admin() {
     if (panel === "edicts" && opportunityForm.type !== "edital") {
       setOpportunityForm(createOpportunityForm("edital"));
       setOpportunityBanner(null);
-      setOpportunityDocument(null);
+      setOpportunityDocuments([]);
     }
     if (panel === "registrations" && opportunityForm.type === "edital") {
       setOpportunityForm(createOpportunityForm("oficina"));
       setOpportunityBanner(null);
-      setOpportunityDocument(null);
+      setOpportunityDocuments([]);
     }
   }, [editingOpportunityId, opportunityForm.type, panel]);
 
@@ -600,21 +600,22 @@ function handleFlyerChange(file: File | null) {
     setOpportunityBanner(file);
   }
 
-  function handleOpportunityDocumentChange(file: File | null) {
-    if (!file) {
-      setOpportunityDocument(null);
+  function handleOpportunityDocumentsChange(files: FileList | null) {
+    const selectedFiles = Array.from(files ?? []);
+    if (selectedFiles.length === 0) {
+      setOpportunityDocuments([]);
       return;
     }
 
-    const validationMessage = validatePdf(file);
+    const validationMessage = selectedFiles.map(validatePdf).find(Boolean);
     if (validationMessage) {
-      setOpportunityDocument(null);
+      setOpportunityDocuments([]);
       setMessage(validationMessage);
       return;
     }
 
     setMessage("");
-    setOpportunityDocument(file);
+    setOpportunityDocuments(selectedFiles);
   }
 
   function createOpportunityForm(type: RegistrationOpportunityType): OpportunityFormState {
@@ -628,7 +629,7 @@ function handleFlyerChange(file: File | null) {
   function resetOpportunityForm(type: RegistrationOpportunityType) {
     setEditingOpportunityId("");
     setOpportunityBanner(null);
-    setOpportunityDocument(null);
+    setOpportunityDocuments([]);
     setOpportunityForm(createOpportunityForm(type));
   }
 
@@ -824,8 +825,12 @@ function handleFlyerChange(file: File | null) {
       return;
     }
 
-    if (opportunityForm.type === "edital" && !opportunityForm.documentUrl && !opportunityDocument) {
-      setMessage("Envie o PDF do edital.");
+    if (
+      opportunityForm.type === "edital" &&
+      opportunityForm.documents.length === 0 &&
+      opportunityDocuments.length === 0
+    ) {
+      setMessage("Envie pelo menos um anexo em PDF para o edital.");
       return;
     }
 
@@ -853,28 +858,34 @@ function handleFlyerChange(file: File | null) {
         bannerUrl = uploadedBanner.path;
       }
 
-      let documentPath = opportunityForm.documentPath;
-      let documentUrl = opportunityForm.documentUrl;
+      const uploadedDocuments = await Promise.all(
+        opportunityDocuments.map(async (documentFile) => {
+          const dataUrl = await readFileAsDataUrl(documentFile);
+          const uploadedDocument = await uploadPublicDocument({
+            data: {
+              dataUrl,
+              fileName: documentFile.name,
+            },
+          });
 
-      if (opportunityDocument) {
-        const dataUrl = await readFileAsDataUrl(opportunityDocument);
-        const uploadedDocument = await uploadPublicDocument({
-          data: {
-            dataUrl,
-            fileName: opportunityDocument.name,
-          },
-        });
-        documentPath = uploadedDocument.path;
-        documentUrl = uploadedDocument.path;
-      }
+          return {
+            name: documentFile.name,
+            path: uploadedDocument.path,
+            url: uploadedDocument.path,
+          };
+        }),
+      );
+      const documents = [...opportunityForm.documents, ...uploadedDocuments];
+      const mainDocument = documents[0];
 
       const opportunityPayload = {
         active: opportunityForm.active,
         bannerPath,
         bannerUrl,
         description: opportunityForm.description.trim(),
-        documentPath,
-        documentUrl,
+        documents,
+        documentPath: mainDocument?.path ?? "",
+        documentUrl: mainDocument?.url ?? "",
         endDate: opportunityForm.endDate,
         fields: opportunityForm.fields.length
           ? opportunityForm.fields
@@ -903,7 +914,7 @@ function handleFlyerChange(file: File | null) {
       setOpportunityForm(createOpportunityForm(opportunityForm.type));
       setEditingOpportunityId("");
       setOpportunityBanner(null);
-      setOpportunityDocument(null);
+      setOpportunityDocuments([]);
       setMessage(
         editingOpportunityId
           ? "Atividade de inscricao atualizada."
@@ -921,14 +932,13 @@ function handleFlyerChange(file: File | null) {
   function handleEditOpportunity(opportunity: RegistrationOpportunity) {
     setEditingOpportunityId(opportunity.id);
     setOpportunityBanner(null);
-    setOpportunityDocument(null);
+    setOpportunityDocuments([]);
     setOpportunityForm({
       active: opportunity.active !== false,
       bannerPath: opportunity.bannerPath ?? "",
       bannerUrl: opportunity.bannerUrl ?? "",
       description: opportunity.description ?? "",
-      documentPath: opportunity.documentPath ?? "",
-      documentUrl: opportunity.documentUrl ?? "",
+      documents: getOpportunityDocuments(opportunity),
       endDate: opportunity.endDate ?? "",
       fields: opportunity.fields?.length
         ? opportunity.fields
@@ -945,7 +955,7 @@ function handleFlyerChange(file: File | null) {
     setEditingOpportunityId("");
     setOpportunityForm(createOpportunityForm(opportunityForm.type));
     setOpportunityBanner(null);
-    setOpportunityDocument(null);
+    setOpportunityDocuments([]);
   }
 
   async function handleDeleteOpportunity(opportunityId: string) {
@@ -1061,18 +1071,24 @@ function handleFlyerChange(file: File | null) {
 
   return (
     <div className="min-h-screen bg-[#F8F8FB] text-[#24223A]">
-      <main className="mx-auto max-w-7xl px-6 py-12 md:px-10 md:py-16">
+      <main
+        className={
+          access === "allowed"
+            ? "min-h-screen w-full px-4 py-6 sm:px-6 lg:px-8"
+            : "mx-auto max-w-7xl px-6 py-12 md:px-10 md:py-16"
+        }
+      >
         {access === "allowed" && (
-          <div className="mb-10 flex flex-col gap-6 border-b border-[#E2E2EA] pb-8 md:flex-row md:items-end md:justify-between">
+          <div className="mb-6 flex flex-col gap-5 border-b border-[#E2E2EA] bg-[#F8F8FB] pb-6 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.28em] text-[#00A859]">
                 <ShieldCheck className="h-4 w-4" />
                 Area administrativa
               </p>
-              <h1 className="mt-4 font-sans text-4xl font-black tracking-normal text-[#414296] md:text-6xl">
+              <h1 className="mt-3 font-sans text-3xl font-black tracking-normal text-[#414296] md:text-5xl">
                 Painel administrativo
               </h1>
-              <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#5F5D70]">
+              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[#5F5D70] md:text-base">
                 Gerencie eventos, inscricoes, paginas do site e usuarios autorizados em um so lugar.
               </p>
             </div>
@@ -1132,8 +1148,8 @@ function handleFlyerChange(file: File | null) {
         )}
 
         {access === "allowed" && (
-          <div className="grid gap-8 lg:grid-cols-[17rem_minmax(0,1fr)]">
-            <aside className="h-fit border-2 border-[#E2E2EA] bg-white p-4">
+          <div className="grid min-h-[calc(100vh-12rem)] gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)]">
+            <aside className="h-fit border-2 border-[#E2E2EA] bg-white p-4 lg:sticky lg:top-6">
               <div className="border-b border-[#E2E2EA] px-2 pb-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#00A859]">
                   Logado como
@@ -1170,7 +1186,7 @@ function handleFlyerChange(file: File | null) {
               </nav>
             </aside>
 
-            <div className="grid gap-8">
+            <div className="grid min-w-0 gap-6">
               {message && (
                 <div className="border-2 border-[#0B86D8] bg-white p-5 text-sm font-semibold text-[#414296]">
                   {message}
@@ -1701,50 +1717,71 @@ function handleFlyerChange(file: File | null) {
 
                       {panel === "edicts" && (
                         <div className="grid gap-3 text-sm font-semibold text-[#414296]">
-                          <span>PDF do edital</span>
+                          <span>Anexos do edital em PDF</span>
                           <label className="flex cursor-pointer flex-col items-center justify-center gap-3 border-2 border-dashed border-[#D8D8E8] bg-[#F8F8FB] px-5 py-8 text-center transition hover:border-[#EF1B2D]">
                             <FileText className="h-6 w-6 text-[#EF1B2D]" />
                             <span className="text-xs uppercase tracking-[0.18em] text-[#414296]">
-                              Selecionar PDF
+                              Selecionar PDFs
                             </span>
                             <input
                               type="file"
                               accept="application/pdf"
+                              multiple
                               onChange={(event) =>
-                                handleOpportunityDocumentChange(event.target.files?.[0] ?? null)
+                                handleOpportunityDocumentsChange(event.target.files)
                               }
                               className="sr-only"
                             />
                           </label>
-                          {opportunityDocument && (
-                            <p className="text-xs font-normal text-[#5F5D70]">
-                              Selecionado: {opportunityDocument.name} (
-                              {(opportunityDocument.size / 1024 / 1024).toFixed(2)} MB)
-                            </p>
+                          {opportunityDocuments.length > 0 && (
+                            <div className="grid gap-2 border-2 border-[#E2E2EA] p-3">
+                              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#00A859]">
+                                Novos anexos selecionados
+                              </p>
+                              {opportunityDocuments.map((documentFile) => (
+                                <p
+                                  key={`${documentFile.name}-${documentFile.size}`}
+                                  className="text-xs font-normal text-[#5F5D70]"
+                                >
+                                  {documentFile.name} ({(documentFile.size / 1024 / 1024).toFixed(2)} MB)
+                                </p>
+                              ))}
+                            </div>
                           )}
-                          {!opportunityDocument && opportunityForm.documentUrl && (
-                            <div className="flex flex-wrap items-center gap-3 border-2 border-[#E2E2EA] p-3">
-                              <a
-                                href={opportunityForm.documentUrl}
-                                className="inline-flex items-center gap-2 text-sm font-semibold text-[#414296] underline"
-                              >
-                                <FileText className="h-4 w-4" />
-                                PDF atual do edital
-                              </a>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setOpportunityForm((current) => ({
-                                    ...current,
-                                    documentPath: "",
-                                    documentUrl: "",
-                                  }))
-                                }
-                                className="inline-flex items-center gap-2 border-2 border-[#EF1B2D] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#EF1B2D] transition hover:bg-[#EF1B2D] hover:text-white"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                                Remover PDF
-                              </button>
+                          {opportunityForm.documents.length > 0 && (
+                            <div className="grid gap-3 border-2 border-[#E2E2EA] p-3">
+                              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#414296]">
+                                Anexos atuais
+                              </p>
+                              {opportunityForm.documents.map((documentItem) => (
+                                <div
+                                  key={documentItem.url}
+                                  className="flex flex-wrap items-center justify-between gap-3 border border-[#E2E2EA] p-3"
+                                >
+                                  <a
+                                    href={documentItem.url}
+                                    className="inline-flex min-w-0 items-center gap-2 text-sm font-semibold text-[#414296] underline"
+                                  >
+                                    <FileText className="h-4 w-4 shrink-0" />
+                                    <span className="truncate">{documentItem.name}</span>
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setOpportunityForm((current) => ({
+                                        ...current,
+                                        documents: current.documents.filter(
+                                          (item) => item.url !== documentItem.url,
+                                        ),
+                                      }))
+                                    }
+                                    className="inline-flex items-center gap-2 border-2 border-[#EF1B2D] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#EF1B2D] transition hover:bg-[#EF1B2D] hover:text-white"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Remover
+                                  </button>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -1974,14 +2011,19 @@ function handleFlyerChange(file: File | null) {
                                       {opportunity.description}
                                     </p>
                                   )}
-                                  {opportunity.documentUrl && (
-                                    <a
-                                      href={opportunity.documentUrl}
-                                      className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-[#EF1B2D] underline"
-                                    >
-                                      <FileText className="h-4 w-4" />
-                                      Ver PDF do edital
-                                    </a>
+                                  {getOpportunityDocuments(opportunity).length > 0 && (
+                                    <div className="mt-3 flex flex-wrap gap-3">
+                                      {getOpportunityDocuments(opportunity).map((documentItem, index) => (
+                                        <a
+                                          key={documentItem.url}
+                                          href={documentItem.url}
+                                          className="inline-flex items-center gap-2 text-sm font-semibold text-[#EF1B2D] underline"
+                                        >
+                                          <FileText className="h-4 w-4" />
+                                          {documentItem.name || `Anexo ${index + 1}`}
+                                        </a>
+                                      ))}
+                                    </div>
                                   )}
                                   <a
                                     href={sharePath}

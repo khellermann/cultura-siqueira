@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { SiteFooter, SiteHeader } from "@/components/SiteHeader";
 import { firebaseDb, isFirebaseConfigured } from "@/lib/firebase";
 import {
+  getOpportunityDocuments,
   getRegistrationSharePath,
   isRegistrationOpportunityOpen,
   registrationOpportunitiesCollection,
@@ -121,15 +122,25 @@ function Editais() {
                       {edict.description}
                     </p>
                   )}
-                  <div className="mt-6 flex flex-wrap gap-3">
-                    {edict.documentUrl && (
-                      <a
-                        href={edict.documentUrl}
-                        className="inline-flex items-center gap-2 border-2 border-[#414296] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#414296] transition hover:bg-[#414296] hover:text-white"
-                      >
-                        <FileText className="h-4 w-4" />
-                        Ver PDF
-                      </a>
+                  <div className="mt-6 grid gap-4">
+                    {getOpportunityDocuments(edict).length > 0 && (
+                      <div className="grid gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#414296]">
+                          Anexos do edital
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                          {getOpportunityDocuments(edict).map((documentItem, index) => (
+                            <a
+                              key={documentItem.url}
+                              href={documentItem.url}
+                              className="inline-flex items-center gap-2 border-2 border-[#414296] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#414296] transition hover:bg-[#414296] hover:text-white"
+                            >
+                              <FileText className="h-4 w-4" />
+                              {documentItem.name || `Anexo ${index + 1}`}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
                     )}
                     <Link
                       to="/inscricoes"
