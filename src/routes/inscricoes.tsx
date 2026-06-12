@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { addDoc, collection, getDocs, orderBy, query, serverTimestamp } from "firebase/firestore";
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, Mail, Printer } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
+import culturaLogo from "@/assets/cultura-logo-horizontal.png";
 import { SiteFooter, SiteHeader } from "@/components/SiteHeader";
 import { firebaseDb, isFirebaseConfigured } from "@/lib/firebase";
 import {
@@ -36,8 +37,13 @@ const initialRegistrationForm: RegistrationFormState = {
 };
 
 type RegistrationReceipt = {
+  address: string;
+  document: string;
+  email: string;
   id: string;
+  opportunityDescription: string;
   opportunityTitle: string;
+  opportunityType: string;
   participantName: string;
 };
 
@@ -90,6 +96,29 @@ function Inscricoes() {
     const nextUrl = new URL(window.location.href);
     nextUrl.searchParams.set("atividade", opportunityId);
     window.history.replaceState(null, "", nextUrl);
+  }
+
+  function getReceiptEmailUrl(receiptData: RegistrationReceipt) {
+    const subject = `Comprovante de inscricao - ${receiptData.opportunityTitle}`;
+    const body = [
+      "Comprovante de inscricao",
+      "",
+      `Codigo: ${receiptData.id}`,
+      `${receiptData.opportunityType}: ${receiptData.opportunityTitle}`,
+      `Nome/Razao social: ${receiptData.participantName}`,
+      `CPF/CNPJ: ${receiptData.document || "Nao informado"}`,
+      `Endereco: ${receiptData.address || "Nao informado"}`,
+      "",
+      "Secretaria Municipal de Cultura de Siqueira Campos/PR",
+    ].join("\n");
+
+    return `mailto:${encodeURIComponent(receiptData.email)}?subject=${encodeURIComponent(
+      subject,
+    )}&body=${encodeURIComponent(body)}`;
+  }
+
+  function handlePrintReceipt() {
+    window.print();
   }
 
   useEffect(() => {
@@ -178,8 +207,13 @@ function Inscricoes() {
       });
       setMessage("Inscricao enviada com sucesso.");
       setReceipt({
+        address: formData.address ?? "",
+        document: formData.document ?? "",
+        email: formData.email ?? "",
         id: registrationDoc.id,
+        opportunityDescription: selectedOpportunity.description ?? "",
         opportunityTitle: selectedOpportunity.title,
+        opportunityType: formatOpportunityType(selectedOpportunity.type),
         participantName: fullName || formData.fullName || "",
       });
     } catch (error) {
@@ -192,6 +226,48 @@ function Inscricoes() {
 
   return (
     <div className="min-h-screen bg-[#F8F8FB] text-[#24223A]">
+      <style>
+        {`
+          @media print {
+            @page {
+              size: A4;
+              margin: 14mm;
+            }
+
+            html,
+            body {
+              background: #ffffff !important;
+            }
+
+            body * {
+              visibility: hidden !important;
+            }
+
+            .registration-receipt,
+            .registration-receipt * {
+              visibility: visible !important;
+            }
+
+            .registration-receipt {
+              position: absolute !important;
+              inset: 0 auto auto 0 !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              margin: 0 !important;
+              box-shadow: none !important;
+              break-inside: avoid;
+              print-color-adjust: exact;
+              -webkit-print-color-adjust: exact;
+            }
+
+            .registration-receipt-actions,
+            .registration-receipt-actions * {
+              display: none !important;
+              visibility: hidden !important;
+            }
+          }
+        `}
+      </style>
       <SiteHeader />
       <main>
         <section className="border-b border-[#E7E7EF] bg-white">
@@ -300,23 +376,91 @@ function Inscricoes() {
               )}
 
               {receipt && (
-                <div className="mt-6 border-2 border-[#00A859] bg-[#F8F8FB] p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#00A859]">
-                    Comprovante de inscricao
-                  </p>
-                  <h3 className="mt-2 font-sans text-2xl font-black text-[#414296]">
-                    {receipt.id}
-                  </h3>
-                  <p className="mt-2 text-sm text-[#5F5D70]">
-                    {receipt.participantName} - {receipt.opportunityTitle}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => window.print()}
-                    className="mt-4 border-2 border-[#00A859] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#00A859] transition hover:bg-[#00A859] hover:text-white"
-                  >
-                    Imprimir comprovante
-                  </button>
+                <div className="registration-receipt mt-6 border-2 border-[#414296] bg-white p-5 shadow-[0_18px_40px_rgba(65,66,150,0.12)]">
+                  <div className="border-2 border-dashed border-[#BFC0D8] bg-[#F8F8FB] p-5">
+                    <div className="flex flex-col gap-4 border-b-2 border-[#E2E2EA] pb-5 md:flex-row md:items-center md:justify-between">
+                      <img
+                        src={culturaLogo}
+                        alt="Secretaria Municipal de Cultura"
+                        className="h-14 w-fit object-contain"
+                      />
+                      <div className="text-left md:text-right">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#00A859]">
+                          Comprovante de inscricao
+                        </p>
+                        <p className="mt-2 font-mono text-xl font-black text-[#414296]">
+                          {receipt.id}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 grid gap-4">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#EF1B2D]">
+                          {receipt.opportunityType}
+                        </p>
+                        <h3 className="mt-2 font-sans text-2xl font-black text-[#414296]">
+                          {receipt.opportunityTitle}
+                        </h3>
+                        {receipt.opportunityDescription && (
+                          <p className="mt-2 text-sm leading-relaxed text-[#5F5D70]">
+                            {receipt.opportunityDescription}
+                          </p>
+                        )}
+                      </div>
+
+                      <dl className="grid gap-3 text-sm md:grid-cols-2">
+                        <div className="border-2 border-[#E2E2EA] bg-white p-3">
+                          <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5F5D70]">
+                            Nome/Razao social
+                          </dt>
+                          <dd className="mt-1 font-semibold text-[#24223A]">
+                            {receipt.participantName || "Nao informado"}
+                          </dd>
+                        </div>
+                        <div className="border-2 border-[#E2E2EA] bg-white p-3">
+                          <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5F5D70]">
+                            CPF/CNPJ
+                          </dt>
+                          <dd className="mt-1 font-semibold text-[#24223A]">
+                            {receipt.document || "Nao informado"}
+                          </dd>
+                        </div>
+                        <div className="border-2 border-[#E2E2EA] bg-white p-3 md:col-span-2">
+                          <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5F5D70]">
+                            Endereco
+                          </dt>
+                          <dd className="mt-1 font-semibold text-[#24223A]">
+                            {receipt.address || "Nao informado"}
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>
+
+                  <div className="registration-receipt-actions mt-4 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={handlePrintReceipt}
+                      className="inline-flex items-center gap-2 border-2 border-[#00A859] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#00A859] transition hover:bg-[#00A859] hover:text-white"
+                    >
+                      <Printer className="h-4 w-4" />
+                      Imprimir comprovante
+                    </button>
+                    {receipt.email ? (
+                      <a
+                        href={getReceiptEmailUrl(receipt)}
+                        className="inline-flex items-center gap-2 border-2 border-[#414296] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#414296] transition hover:bg-[#414296] hover:text-white"
+                      >
+                        <Mail className="h-4 w-4" />
+                        Enviar por email
+                      </a>
+                    ) : (
+                      <span className="inline-flex items-center border-2 border-[#E2E2EA] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#5F5D70]">
+                        Informe e-mail para envio
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
 

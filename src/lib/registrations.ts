@@ -77,8 +77,8 @@ export function getDefaultRegistrationFields(type: RegistrationOpportunityType) 
   }
 
   return registrationFieldOptions
-    .filter((field) => ["fullName", "birthDate", "address", "phone"].includes(field.key))
-    .map((field) => ({ ...field, required: true }));
+    .filter((field) => ["fullName", "birthDate", "address", "phone", "email"].includes(field.key))
+    .map((field) => ({ ...field, required: field.key === "email" ? false : true }));
 }
 
 export function isRegistrationOpportunityOpen(
