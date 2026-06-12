@@ -15,6 +15,7 @@ export const publicPages = [
   { title: "Museu", label: "Museu", path: "/museu", area: "Museu" },
   { title: "Biblioteca", label: "Biblioteca", path: "/biblioteca", area: "Secretaria" },
   { title: "Casa da Cultura", label: "Casa da Cultura", path: "/casa-da-cultura", area: "Secretaria" },
+  { title: "Editais", label: "Editais", path: "/editais", area: "Secretaria" },
   { title: "Inscricoes", label: "Inscricoes", path: "/inscricoes", area: "Secretaria" },
   { title: "Eventos", label: "Eventos", path: "/eventos", area: "Secretaria" },
   { title: "Acervo", label: "Acervo", path: "/acervo", area: "Museu" },
@@ -29,7 +30,9 @@ export const defaultMenuVisibility = publicPages.reduce<Record<string, boolean>>
 }, {});
 
 export const secretariaMenuItems = publicPages.filter((page) =>
-  ["/", "/museu", "/biblioteca", "/casa-da-cultura", "/inscricoes", "/eventos"].includes(page.path),
+  ["/", "/museu", "/biblioteca", "/casa-da-cultura", "/editais", "/inscricoes", "/eventos"].includes(
+    page.path,
+  ),
 );
 
 export const museumMenuItems = publicPages.filter((page) =>

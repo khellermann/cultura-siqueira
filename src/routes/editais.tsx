@@ -1,0 +1,152 @@
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { ClipboardList, FileText } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { SiteFooter, SiteHeader } from "@/components/SiteHeader";
+import { firebaseDb, isFirebaseConfigured } from "@/lib/firebase";
+import {
+  getRegistrationSharePath,
+  isRegistrationOpportunityOpen,
+  registrationOpportunitiesCollection,
+  type RegistrationOpportunity,
+} from "@/lib/registrations";
+
+export const Route = createFileRoute("/editais")({
+  head: () => ({
+    meta: [
+      { title: "Editais - Secretaria Municipal de Cultura" },
+      {
+        name: "description",
+        content: "Editais abertos da Secretaria Municipal de Cultura de Siqueira Campos.",
+      },
+    ],
+  }),
+  component: Editais,
+});
+
+function Editais() {
+  const [edicts, setEdicts] = useState<RegistrationOpportunity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    async function loadEdicts() {
+      if (!isFirebaseConfigured || !firebaseDb) {
+        setLoading(false);
+        setMessage("Os editais online ainda nao estao configurados.");
+        return;
+      }
+
+      try {
+        const snapshot = await getDocs(
+          query(collection(firebaseDb, registrationOpportunitiesCollection), orderBy("title", "asc")),
+        );
+        setEdicts(
+          snapshot.docs
+            .map((edictDoc) => ({
+              id: edictDoc.id,
+              ...(edictDoc.data() as Omit<RegistrationOpportunity, "id">),
+            }))
+            .filter(
+              (opportunity) =>
+                opportunity.type === "edital" && isRegistrationOpportunityOpen(opportunity),
+            ),
+        );
+      } catch (error) {
+        console.error(error);
+        setMessage("Nao foi possivel carregar os editais. Tente novamente mais tarde.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void loadEdicts();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[#F8F8FB] text-[#24223A]">
+      <SiteHeader />
+      <main>
+        <section className="border-b border-[#E7E7EF] bg-white">
+          <div className="mx-auto max-w-7xl px-6 pb-10 pt-32 md:px-10 md:pt-36">
+            <p className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.3em] text-[#EF1B2D]">
+              <FileText className="h-4 w-4" />
+              Editais
+            </p>
+            <h1 className="mt-5 max-w-4xl font-sans text-4xl font-black leading-tight tracking-normal text-[#414296] md:text-6xl">
+              Editais e chamadas culturais abertas.
+            </h1>
+            <p className="mt-5 max-w-3xl text-base leading-relaxed text-[#4B4A5F] md:text-lg">
+              Consulte os documentos publicados e acesse o formulario de inscricao de cada edital.
+            </p>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-6 py-12 md:px-10 md:py-16">
+          {loading && (
+            <p className="border-2 border-[#E2E2EA] bg-white p-5 text-sm text-[#5F5D70]">
+              Carregando editais...
+            </p>
+          )}
+          {message && (
+            <p className="border-2 border-[#0B86D8] bg-white p-5 text-sm font-semibold text-[#414296]">
+              {message}
+            </p>
+          )}
+          {!loading && edicts.length === 0 && !message && (
+            <p className="border-2 border-[#E2E2EA] bg-white p-5 text-sm text-[#5F5D70]">
+              No momento nao ha editais abertos.
+            </p>
+          )}
+          <div className="grid gap-6 md:grid-cols-2">
+            {edicts.map((edict) => (
+              <article key={edict.id} className="overflow-hidden border-2 border-[#E2E2EA] bg-white">
+                {edict.bannerUrl && (
+                  <img
+                    src={edict.bannerUrl}
+                    alt={`Banner de ${edict.title}`}
+                    className="h-56 w-full object-cover"
+                  />
+                )}
+                <div className="p-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#EF1B2D]">
+                    Edital aberto
+                  </p>
+                  <h2 className="mt-3 font-sans text-3xl font-black text-[#414296]">
+                    {edict.title}
+                  </h2>
+                  {edict.description && (
+                    <p className="mt-4 text-sm leading-relaxed text-[#5F5D70]">
+                      {edict.description}
+                    </p>
+                  )}
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    {edict.documentUrl && (
+                      <a
+                        href={edict.documentUrl}
+                        className="inline-flex items-center gap-2 border-2 border-[#414296] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#414296] transition hover:bg-[#414296] hover:text-white"
+                      >
+                        <FileText className="h-4 w-4" />
+                        Ver PDF
+                      </a>
+                    )}
+                    <Link
+                      to="/inscricoes"
+                      search={{ atividade: edict.id }}
+                      className="inline-flex items-center gap-2 bg-[#EF1B2D] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[#414296]"
+                    >
+                      <ClipboardList className="h-4 w-4" />
+                      Inscrever-se
+                    </Link>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      </main>
+      <SiteFooter />
+    </div>
+  );
+}

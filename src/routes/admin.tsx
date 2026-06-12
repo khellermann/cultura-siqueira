@@ -26,6 +26,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Download,
   ExternalLink,
   FileText,
   Italic,
@@ -48,6 +49,7 @@ import {
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import culturaLogo from "@/assets/cultura-logo-stacked.png";
+import { uploadPublicDocument } from "@/lib/api/document.functions";
 import { uploadEventFlyer } from "@/lib/api/flyer.functions";
 import { firebaseAuth, firebaseDb, isFirebaseConfigured } from "@/lib/firebase";
 import { richTextToPlainText, sanitizeRichText } from "@/lib/richText";
@@ -80,9 +82,13 @@ import {
 } from "@/lib/siteSettings";
 import {
   formatOpportunityType,
+  getDefaultRegistrationFields,
   getRegistrationSharePath,
+  registrationFieldOptions,
   registrationOpportunitiesCollection,
   registrationOpportunityTypes,
+  type RegistrationFieldConfig,
+  type RegistrationFieldKey,
   registrationsCollection,
   type RegistrationEntry,
   type RegistrationOpportunity,
@@ -90,7 +96,7 @@ import {
 } from "@/lib/registrations";
 
 type AdminAccess = "loading" | "allowed" | "denied" | "signed-out";
-type AdminPanel = "overview" | "events" | "registrations" | "pages" | "admins";
+type AdminPanel = "overview" | "events" | "registrations" | "edicts" | "submissions" | "pages" | "admins";
 
 const calendarWeekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"] as const;
 const calendarMonthNames = [
@@ -133,7 +139,11 @@ type OpportunityFormState = {
   bannerPath: string;
   bannerUrl: string;
   description: string;
+  documentPath: string;
+  documentUrl: string;
   endDate: string;
+  fields: RegistrationFieldConfig[];
+  registrationUrl: string;
   startDate: string;
   title: string;
   type: RegistrationOpportunityType;
@@ -164,7 +174,11 @@ const initialOpportunityForm: OpportunityFormState = {
   bannerPath: "",
   bannerUrl: "",
   description: "",
+  documentPath: "",
+  documentUrl: "",
   endDate: "",
+  fields: getDefaultRegistrationFields("oficina"),
+  registrationUrl: "",
   startDate: "",
   title: "",
   type: "oficina",
@@ -173,7 +187,9 @@ const initialOpportunityForm: OpportunityFormState = {
 const adminPanels = [
   { id: "overview", label: "Painel", icon: LayoutDashboard },
   { id: "events", label: "Eventos", icon: CalendarDays },
-  { id: "registrations", label: "Inscricoes", icon: ClipboardList },
+  { id: "registrations", label: "Cursos e oficinas", icon: ClipboardList },
+  { id: "edicts", label: "Editais", icon: FileText },
+  { id: "submissions", label: "Inscricoes recebidas", icon: Download },
   { id: "pages", label: "Paginas", icon: FileText },
 ] satisfies Array<{ id: AdminPanel; label: string; icon: LucideIcon }>;
 
@@ -211,6 +227,18 @@ function readFileAsDataUrl(file: File) {
     reader.addEventListener("error", () => reject(new Error("Nao foi possivel ler a imagem.")));
     reader.readAsDataURL(file);
   });
+}
+
+function validatePdf(file: File) {
+  if (file.type !== "application/pdf") {
+    return "O documento precisa ser um PDF.";
+  }
+
+  if (file.size > 10 * 1024 * 1024) {
+    return "O PDF precisa ter ate 10 MB.";
+  }
+
+  return "";
 }
 
 function eventToFormState(event: CulturalEvent): EventFormState {
@@ -286,11 +314,13 @@ function Admin() {
   const [message, setMessage] = useState("");
   const [editingOpportunityId, setEditingOpportunityId] = useState("");
   const [opportunityBanner, setOpportunityBanner] = useState<File | null>(null);
+  const [opportunityDocument, setOpportunityDocument] = useState<File | null>(null);
   const [opportunities, setOpportunities] = useState<RegistrationOpportunity[]>([]);
   const [opportunityForm, setOpportunityForm] =
     useState<OpportunityFormState>(initialOpportunityForm);
   const [panel, setPanel] = useState<AdminPanel>("overview");
   const [registrationEntries, setRegistrationEntries] = useState<RegistrationEntry[]>([]);
+  const [selectedSubmissionOpportunityId, setSelectedSubmissionOpportunityId] = useState("");
   const [saving, setSaving] = useState(false);
   const [savingMenu, setSavingMenu] = useState(false);
   const [tokenEmail, setTokenEmail] = useState("");
@@ -385,6 +415,20 @@ function Admin() {
     });
   }, [authReady]);
 
+  useEffect(() => {
+    if (editingOpportunityId) return;
+    if (panel === "edicts" && opportunityForm.type !== "edital") {
+      setOpportunityForm(createOpportunityForm("edital"));
+      setOpportunityBanner(null);
+      setOpportunityDocument(null);
+    }
+    if (panel === "registrations" && opportunityForm.type === "edital") {
+      setOpportunityForm(createOpportunityForm("oficina"));
+      setOpportunityBanner(null);
+      setOpportunityDocument(null);
+    }
+  }, [editingOpportunityId, opportunityForm.type, panel]);
+
   const sortedEvents = useMemo(
     () => [...events].sort((a, b) => a.date.localeCompare(b.date)),
     [events],
@@ -400,6 +444,29 @@ function Admin() {
     [events],
   );
   const publicOrigin = typeof window === "undefined" ? "" : window.location.origin;
+  const edicts = useMemo(
+    () => opportunities.filter((opportunity) => opportunity.type === "edital"),
+    [opportunities],
+  );
+  const courseOpportunities = useMemo(
+    () => opportunities.filter((opportunity) => opportunity.type !== "edital"),
+    [opportunities],
+  );
+  const selectedSubmissionOpportunity = useMemo(
+    () =>
+      opportunities.find((opportunity) => opportunity.id === selectedSubmissionOpportunityId) ??
+      opportunities[0],
+    [opportunities, selectedSubmissionOpportunityId],
+  );
+  const selectedSubmissionEntries = useMemo(
+    () =>
+      selectedSubmissionOpportunity
+        ? registrationEntries.filter(
+            (entry) => entry.opportunityId === selectedSubmissionOpportunity.id,
+          )
+        : [],
+    [registrationEntries, selectedSubmissionOpportunity],
+  );
 
   async function handleLogin() {
     if (!firebaseAuth) return;
@@ -522,6 +589,62 @@ function handleFlyerChange(file: File | null) {
 
     setMessage("");
     setOpportunityBanner(file);
+  }
+
+  function handleOpportunityDocumentChange(file: File | null) {
+    if (!file) {
+      setOpportunityDocument(null);
+      return;
+    }
+
+    const validationMessage = validatePdf(file);
+    if (validationMessage) {
+      setOpportunityDocument(null);
+      setMessage(validationMessage);
+      return;
+    }
+
+    setMessage("");
+    setOpportunityDocument(file);
+  }
+
+  function createOpportunityForm(type: RegistrationOpportunityType): OpportunityFormState {
+    return {
+      ...initialOpportunityForm,
+      fields: getDefaultRegistrationFields(type),
+      type,
+    };
+  }
+
+  function resetOpportunityForm(type: RegistrationOpportunityType) {
+    setEditingOpportunityId("");
+    setOpportunityBanner(null);
+    setOpportunityDocument(null);
+    setOpportunityForm(createOpportunityForm(type));
+  }
+
+  function toggleOpportunityField(fieldKey: RegistrationFieldKey) {
+    const option = registrationFieldOptions.find((field) => field.key === fieldKey);
+    if (!option) return;
+
+    setOpportunityForm((current) => {
+      const exists = current.fields.some((field) => field.key === fieldKey);
+      return {
+        ...current,
+        fields: exists
+          ? current.fields.filter((field) => field.key !== fieldKey)
+          : [...current.fields, { ...option }],
+      };
+    });
+  }
+
+  function toggleOpportunityFieldRequired(fieldKey: RegistrationFieldKey) {
+    setOpportunityForm((current) => ({
+      ...current,
+      fields: current.fields.map((field) =>
+        field.key === fieldKey ? { ...field, required: !field.required } : field,
+      ),
+    }));
   }
 
   function handleEditEvent(event: CulturalEvent) {
@@ -690,6 +813,16 @@ function handleFlyerChange(file: File | null) {
       return;
     }
 
+    if (opportunityForm.type === "edital" && !opportunityForm.documentUrl && !opportunityDocument) {
+      setMessage("Envie o PDF do edital.");
+      return;
+    }
+
+    if (opportunityForm.type === "edital" && opportunityForm.fields.length === 0) {
+      setMessage("Selecione pelo menos um campo para o formulario do edital.");
+      return;
+    }
+
     setSaving(true);
     setMessage("");
 
@@ -709,12 +842,33 @@ function handleFlyerChange(file: File | null) {
         bannerUrl = uploadedBanner.path;
       }
 
+      let documentPath = opportunityForm.documentPath;
+      let documentUrl = opportunityForm.documentUrl;
+
+      if (opportunityDocument) {
+        const dataUrl = await readFileAsDataUrl(opportunityDocument);
+        const uploadedDocument = await uploadPublicDocument({
+          data: {
+            dataUrl,
+            fileName: opportunityDocument.name,
+          },
+        });
+        documentPath = uploadedDocument.path;
+        documentUrl = uploadedDocument.path;
+      }
+
       const opportunityPayload = {
         active: opportunityForm.active,
         bannerPath,
         bannerUrl,
         description: opportunityForm.description.trim(),
+        documentPath,
+        documentUrl,
         endDate: opportunityForm.endDate,
+        fields: opportunityForm.fields.length
+          ? opportunityForm.fields
+          : getDefaultRegistrationFields(opportunityForm.type),
+        registrationUrl: opportunityForm.registrationUrl.trim(),
         startDate: opportunityForm.startDate,
         title,
         type: opportunityForm.type,
@@ -735,9 +889,10 @@ function handleFlyerChange(file: File | null) {
         });
       }
 
-      setOpportunityForm(initialOpportunityForm);
+      setOpportunityForm(createOpportunityForm(opportunityForm.type));
       setEditingOpportunityId("");
       setOpportunityBanner(null);
+      setOpportunityDocument(null);
       setMessage(
         editingOpportunityId
           ? "Atividade de inscricao atualizada."
@@ -755,23 +910,31 @@ function handleFlyerChange(file: File | null) {
   function handleEditOpportunity(opportunity: RegistrationOpportunity) {
     setEditingOpportunityId(opportunity.id);
     setOpportunityBanner(null);
+    setOpportunityDocument(null);
     setOpportunityForm({
       active: opportunity.active !== false,
       bannerPath: opportunity.bannerPath ?? "",
       bannerUrl: opportunity.bannerUrl ?? "",
       description: opportunity.description ?? "",
+      documentPath: opportunity.documentPath ?? "",
+      documentUrl: opportunity.documentUrl ?? "",
       endDate: opportunity.endDate ?? "",
+      fields: opportunity.fields?.length
+        ? opportunity.fields
+        : getDefaultRegistrationFields(opportunity.type ?? "oficina"),
+      registrationUrl: opportunity.registrationUrl ?? "",
       startDate: opportunity.startDate ?? "",
       title: opportunity.title ?? "",
       type: opportunity.type ?? "oficina",
     });
-    setPanel("registrations");
+    setPanel((opportunity.type ?? "oficina") === "edital" ? "edicts" : "registrations");
   }
 
   function handleCancelOpportunityEdit() {
     setEditingOpportunityId("");
-    setOpportunityForm(initialOpportunityForm);
+    setOpportunityForm(createOpportunityForm(opportunityForm.type));
     setOpportunityBanner(null);
+    setOpportunityDocument(null);
   }
 
   async function handleDeleteOpportunity(opportunityId: string) {
@@ -787,6 +950,70 @@ function handleFlyerChange(file: File | null) {
     await deleteDoc(doc(firebaseDb, registrationsCollection, registrationId));
     setMessage("Inscricao removida.");
     await loadAdminData();
+  }
+
+  function getEntryValue(entry: RegistrationEntry, fieldKey: string) {
+    const formValue = entry.formData?.[fieldKey];
+    if (formValue) return formValue;
+    return String((entry as unknown as Record<string, unknown>)[fieldKey] ?? "");
+  }
+
+  function getSubmissionFields(opportunity?: RegistrationOpportunity) {
+    return opportunity?.fields?.length
+      ? opportunity.fields
+      : getDefaultRegistrationFields(opportunity?.type ?? "oficina");
+  }
+
+  function downloadTextFile(fileName: string, content: string, type: string) {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportSelectedSubmissions(format: "csv" | "doc" | "pdf") {
+    if (!selectedSubmissionOpportunity) return;
+    const fields = getSubmissionFields(selectedSubmissionOpportunity);
+    const title = selectedSubmissionOpportunity.title.replace(/[^a-zA-Z0-9-]+/g, "-").toLowerCase();
+    const rows = selectedSubmissionEntries.map((entry) => [
+      entry.id,
+      ...fields.map((field) => getEntryValue(entry, field.key)),
+    ]);
+
+    if (format === "csv") {
+      const csvRows = [
+        ["Comprovante", ...fields.map((field) => field.label)],
+        ...rows,
+      ].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(";"));
+      downloadTextFile(`inscricoes-${title}.csv`, csvRows.join("\n"), "text/csv;charset=utf-8");
+      return;
+    }
+
+    const tableRows = rows
+      .map(
+        (row) =>
+          `<tr>${row
+            .map((cell) => `<td style="border:1px solid #999;padding:6px">${String(cell)}</td>`)
+            .join("")}</tr>`,
+      )
+      .join("");
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Inscricoes</title></head><body><h1>${selectedSubmissionOpportunity.title}</h1><table style="border-collapse:collapse;width:100%"><thead><tr><th style="border:1px solid #999;padding:6px">Comprovante</th>${fields
+      .map((field) => `<th style="border:1px solid #999;padding:6px">${field.label}</th>`)
+      .join("")}</tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
+
+    if (format === "doc") {
+      downloadTextFile(`inscricoes-${title}.doc`, html, "application/msword;charset=utf-8");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank");
+    printWindow?.document.write(html);
+    printWindow?.document.close();
+    printWindow?.focus();
+    printWindow?.print();
   }
 
   async function handleToggleMenuItem(path: string) {
@@ -1090,6 +1317,103 @@ function handleFlyerChange(file: File | null) {
                         )}
                       </div>
 
+                      {opportunityForm.type === "edital" && (
+                        <div className="grid gap-5">
+                          <label className="grid gap-2 text-sm font-semibold text-[#414296]">
+                            PDF do edital
+                            <span className="flex items-center gap-3 border-2 border-dashed border-[#BFC0D8] px-4 py-4 text-sm font-normal text-[#5F5D70]">
+                              <Upload className="h-5 w-5 text-[#EF1B2D]" />
+                              <input
+                                accept="application/pdf"
+                                type="file"
+                                onChange={(event) =>
+                                  handleOpportunityDocumentChange(event.target.files?.[0] ?? null)
+                                }
+                                className="w-full"
+                              />
+                            </span>
+                            {opportunityDocument && (
+                              <span className="text-xs font-normal text-[#5F5D70]">
+                                Selecionado: {opportunityDocument.name} (
+                                {(opportunityDocument.size / 1024 / 1024).toFixed(2)} MB)
+                              </span>
+                            )}
+                            {!opportunityDocument && opportunityForm.documentUrl && (
+                              <span className="flex flex-wrap items-center gap-3 text-xs font-normal text-[#5F5D70]">
+                                PDF atual sera mantido.
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setOpportunityForm((current) => ({
+                                      ...current,
+                                      documentPath: "",
+                                      documentUrl: "",
+                                    }))
+                                  }
+                                  className="font-semibold uppercase tracking-[0.14em] text-[#EF1B2D]"
+                                >
+                                  Remover PDF
+                                </button>
+                              </span>
+                            )}
+                          </label>
+
+                          <label className="grid gap-2 text-sm font-semibold text-[#414296]">
+                            Link externo para inscricoes
+                            <input
+                              value={opportunityForm.registrationUrl}
+                              onChange={(event) =>
+                                setOpportunityForm((current) => ({
+                                  ...current,
+                                  registrationUrl: event.target.value,
+                                }))
+                              }
+                              className="border-2 border-[#E2E2EA] px-4 py-3 text-[#24223A] outline-none focus:border-[#0B86D8]"
+                              placeholder="Opcional. Deixe vazio para usar o formulario interno."
+                            />
+                          </label>
+
+                          <div className="grid gap-3 text-sm font-semibold text-[#414296]">
+                            <span>Campos do formulario deste edital</span>
+                            <div className="grid gap-3 md:grid-cols-2">
+                              {registrationFieldOptions.map((field) => {
+                                const selected = opportunityForm.fields.some(
+                                  (item) => item.key === field.key,
+                                );
+                                const currentField = opportunityForm.fields.find(
+                                  (item) => item.key === field.key,
+                                );
+
+                                return (
+                                  <div key={field.key} className="border-2 border-[#E2E2EA] p-3">
+                                    <label className="flex items-center gap-3 text-sm text-[#24223A]">
+                                      <input
+                                        type="checkbox"
+                                        checked={selected}
+                                        onChange={() => toggleOpportunityField(field.key)}
+                                        className="h-4 w-4"
+                                      />
+                                      {field.label}
+                                    </label>
+                                    {selected && (
+                                      <label className="mt-3 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#5F5D70]">
+                                        <input
+                                          type="checkbox"
+                                          checked={currentField?.required !== false}
+                                          onChange={() => toggleOpportunityFieldRequired(field.key)}
+                                          className="h-4 w-4"
+                                        />
+                                        Obrigatorio
+                                      </label>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="grid gap-5 md:grid-cols-3">
                         <label className="grid gap-2 text-sm font-semibold text-[#414296]">
                           Data
@@ -1387,18 +1711,19 @@ function handleFlyerChange(file: File | null) {
                 </section>
               )}
 
-              {panel === "registrations" && (
+              {(panel === "registrations" || panel === "edicts") && (
                 <section className="grid gap-8">
                   <section className="border-2 border-[#E2E2EA] bg-white p-6 md:p-8">
                     <div className="flex items-center gap-3">
                       <ClipboardList className="h-6 w-6 text-[#EF1B2D]" />
                       <h2 className="font-sans text-3xl font-black text-[#414296]">
-                        Inscricoes
+                        {panel === "edicts" ? "Editais" : "Cursos, oficinas e eventos"}
                       </h2>
                     </div>
                     <p className="mt-4 max-w-3xl text-sm leading-relaxed text-[#5F5D70]">
-                      Cadastre oficinas, cursos ou eventos com inscricao aberta. Cada atividade ganha
-                      um link direto para divulgacao e as respostas aparecem neste painel.
+                      {panel === "edicts"
+                        ? "Cadastre editais, anexe o PDF, configure o formulario e divulgue o link de inscricao."
+                        : "Cadastre oficinas, cursos ou eventos com inscricao aberta. Cada atividade ganha um link direto para divulgacao."}
                     </p>
 
                     <form onSubmit={handleSaveOpportunity} className="mt-8 grid gap-5">
@@ -1423,14 +1748,20 @@ function handleFlyerChange(file: File | null) {
                           <select
                             value={opportunityForm.type}
                             onChange={(event) =>
-                              setOpportunityForm((current) => ({
-                                ...current,
-                                type: event.target.value as RegistrationOpportunityType,
-                              }))
+                              setOpportunityForm((current) => {
+                                const type = event.target.value as RegistrationOpportunityType;
+                                return {
+                                  ...current,
+                                  fields: getDefaultRegistrationFields(type),
+                                  type,
+                                };
+                              })
                             }
                             className="border-2 border-[#E2E2EA] px-4 py-3 text-[#24223A] outline-none focus:border-[#0B86D8]"
                           >
-                            {registrationOpportunityTypes.map((type) => (
+                            {registrationOpportunityTypes
+                              .filter((type) => (panel === "edicts" ? type === "edital" : type !== "edital"))
+                              .map((type) => (
                               <option key={type} value={type}>
                                 {formatOpportunityType(type)}
                               </option>
@@ -1580,18 +1911,20 @@ function handleFlyerChange(file: File | null) {
                     </form>
                   </section>
 
-                  <section className="grid gap-8 lg:grid-cols-2">
+                  <section className="grid gap-8">
                     <div className="border-2 border-[#E2E2EA] bg-white p-6">
                       <h3 className="font-sans text-2xl font-black text-[#414296]">
-                        Atividades com inscricao
+                        {panel === "edicts" ? "Editais cadastrados" : "Atividades com inscricao"}
                       </h3>
                       <div className="mt-5 grid gap-4">
-                        {opportunities.length === 0 && (
+                        {(panel === "edicts" ? edicts : courseOpportunities).length === 0 && (
                           <p className="text-sm text-[#5F5D70]">
-                            Nenhuma atividade cadastrada ainda.
+                            {panel === "edicts"
+                              ? "Nenhum edital cadastrado ainda."
+                              : "Nenhuma atividade cadastrada ainda."}
                           </p>
                         )}
-                        {opportunities.map((opportunity) => {
+                        {(panel === "edicts" ? edicts : courseOpportunities).map((opportunity) => {
                           const sharePath = getRegistrationSharePath(opportunity.id);
                           const shareUrl = `${publicOrigin}${sharePath}`;
 
@@ -1617,6 +1950,15 @@ function handleFlyerChange(file: File | null) {
                                     <p className="mt-2 text-sm leading-relaxed text-[#5F5D70]">
                                       {opportunity.description}
                                     </p>
+                                  )}
+                                  {opportunity.documentUrl && (
+                                    <a
+                                      href={opportunity.documentUrl}
+                                      className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-[#EF1B2D] underline"
+                                    >
+                                      <FileText className="h-4 w-4" />
+                                      Ver PDF do edital
+                                    </a>
                                   )}
                                   <a
                                     href={sharePath}
@@ -1652,55 +1994,164 @@ function handleFlyerChange(file: File | null) {
                         })}
                       </div>
                     </div>
+                  </section>
+                </section>
+              )}
 
-                    <div className="border-2 border-[#E2E2EA] bg-white p-6">
-                      <h3 className="font-sans text-2xl font-black text-[#414296]">
+              {panel === "submissions" && (
+                <section className="grid gap-8">
+                  <section className="border-2 border-[#E2E2EA] bg-white p-6 md:p-8">
+                    <div className="flex items-center gap-3">
+                      <Download className="h-6 w-6 text-[#00A859]" />
+                      <h2 className="font-sans text-3xl font-black text-[#414296]">
                         Inscricoes recebidas
-                      </h3>
-                      <div className="mt-5 grid gap-4">
-                        {registrationEntries.length === 0 && (
-                          <p className="text-sm text-[#5F5D70]">
-                            Nenhuma inscricao recebida ainda.
-                          </p>
+                      </h2>
+                    </div>
+                    <p className="mt-4 max-w-3xl text-sm leading-relaxed text-[#5F5D70]">
+                      Selecione um curso, evento ou edital para consultar as inscricoes e exportar a
+                      lista em PDF, Word ou Excel.
+                    </p>
+                  </section>
+
+                  <section className="grid gap-8 lg:grid-cols-[22rem_1fr]">
+                    <div className="border-2 border-[#E2E2EA] bg-white p-5">
+                      <h3 className="font-sans text-2xl font-black text-[#414296]">Atividades</h3>
+                      <div className="mt-5 grid gap-3">
+                        {opportunities.length === 0 && (
+                          <p className="text-sm text-[#5F5D70]">Nenhum cadastro encontrado.</p>
                         )}
-                        {registrationEntries.map((entry) => (
-                          <article key={entry.id} className="border-2 border-[#E2E2EA] p-4">
-                            <div className="flex items-start justify-between gap-4">
-                              <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#00A859]">
-                                  {entry.opportunityTitle}
-                                </p>
-                                <h4 className="mt-2 font-sans text-xl font-black text-[#24223A]">
-                                  {entry.fullName}
-                                </h4>
-                              </div>
+                        {opportunities.map((opportunity) => {
+                          const total = registrationEntries.filter(
+                            (entry) => entry.opportunityId === opportunity.id,
+                          ).length;
+                          const active =
+                            selectedSubmissionOpportunity?.id === opportunity.id ||
+                            (!selectedSubmissionOpportunityId &&
+                              opportunities[0]?.id === opportunity.id);
+
+                          return (
+                            <button
+                              key={opportunity.id}
+                              type="button"
+                              onClick={() => setSelectedSubmissionOpportunityId(opportunity.id)}
+                              className={`border-2 p-4 text-left transition hover:border-[#414296] ${
+                                active ? "border-[#414296] bg-[#F8F8FB]" : "border-[#E2E2EA]"
+                              }`}
+                            >
+                              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#EF1B2D]">
+                                {formatOpportunityType(opportunity.type)}
+                              </p>
+                              <h4 className="mt-2 font-sans text-xl font-black text-[#24223A]">
+                                {opportunity.title}
+                              </h4>
+                              <p className="mt-2 text-sm text-[#5F5D70]">
+                                {total} inscricao{total === 1 ? "" : "es"}
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="border-2 border-[#E2E2EA] bg-white p-5">
+                      {selectedSubmissionOpportunity ? (
+                        <>
+                          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#00A859]">
+                                {formatOpportunityType(selectedSubmissionOpportunity.type)}
+                              </p>
+                              <h3 className="mt-2 font-sans text-3xl font-black text-[#414296]">
+                                {selectedSubmissionOpportunity.title}
+                              </h3>
+                              <p className="mt-2 text-sm text-[#5F5D70]">
+                                {selectedSubmissionEntries.length} inscricao
+                                {selectedSubmissionEntries.length === 1 ? "" : "es"} encontrada
+                                {selectedSubmissionEntries.length === 1 ? "" : "s"}.
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
                               <button
                                 type="button"
-                                onClick={() => handleDeleteRegistration(entry.id)}
-                                className="inline-flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#EF1B2D] text-[#EF1B2D] transition hover:bg-[#EF1B2D] hover:text-white"
-                                aria-label="Remover inscricao"
-                                title="Remover inscricao"
+                                onClick={() => exportSelectedSubmissions("pdf")}
+                                className="inline-flex items-center gap-2 border-2 border-[#414296] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#414296] transition hover:bg-[#414296] hover:text-white"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Download className="h-4 w-4" />
+                                PDF
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => exportSelectedSubmissions("doc")}
+                                className="inline-flex items-center gap-2 border-2 border-[#0B86D8] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#0B86D8] transition hover:bg-[#0B86D8] hover:text-white"
+                              >
+                                <Download className="h-4 w-4" />
+                                Word
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => exportSelectedSubmissions("csv")}
+                                className="inline-flex items-center gap-2 border-2 border-[#00A859] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#00A859] transition hover:bg-[#00A859] hover:text-white"
+                              >
+                                <Download className="h-4 w-4" />
+                                Excel
                               </button>
                             </div>
-                            <dl className="mt-4 grid gap-2 text-sm text-[#5F5D70]">
-                              <div>
-                                <dt className="font-semibold text-[#414296]">Nascimento</dt>
-                                <dd>{entry.birthDate || "Nao informado"}</dd>
-                              </div>
-                              <div>
-                                <dt className="font-semibold text-[#414296]">Telefone</dt>
-                                <dd>{entry.phone}</dd>
-                              </div>
-                              <div>
-                                <dt className="font-semibold text-[#414296]">Endereco</dt>
-                                <dd>{entry.address}</dd>
-                              </div>
-                            </dl>
-                          </article>
-                        ))}
-                      </div>
+                          </div>
+
+                          <div className="mt-6 overflow-x-auto">
+                            <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+                              <thead>
+                                <tr className="bg-[#F8F8FB] text-xs uppercase tracking-[0.14em] text-[#414296]">
+                                  <th className="border-2 border-[#E2E2EA] p-3">Comprovante</th>
+                                  {getSubmissionFields(selectedSubmissionOpportunity).map((field) => (
+                                    <th key={field.key} className="border-2 border-[#E2E2EA] p-3">
+                                      {field.label}
+                                    </th>
+                                  ))}
+                                  <th className="border-2 border-[#E2E2EA] p-3">Acoes</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {selectedSubmissionEntries.length === 0 && (
+                                  <tr>
+                                    <td
+                                      colSpan={getSubmissionFields(selectedSubmissionOpportunity).length + 2}
+                                      className="border-2 border-[#E2E2EA] p-4 text-[#5F5D70]"
+                                    >
+                                      Nenhuma inscricao para este cadastro.
+                                    </td>
+                                  </tr>
+                                )}
+                                {selectedSubmissionEntries.map((entry) => (
+                                  <tr key={entry.id}>
+                                    <td className="border-2 border-[#E2E2EA] p-3 font-semibold text-[#414296]">
+                                      {entry.id}
+                                    </td>
+                                    {getSubmissionFields(selectedSubmissionOpportunity).map((field) => (
+                                      <td key={field.key} className="border-2 border-[#E2E2EA] p-3">
+                                        {getEntryValue(entry, field.key) || "-"}
+                                      </td>
+                                    ))}
+                                    <td className="border-2 border-[#E2E2EA] p-3">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteRegistration(entry.id)}
+                                        className="inline-flex h-9 w-9 items-center justify-center border-2 border-[#EF1B2D] text-[#EF1B2D] transition hover:bg-[#EF1B2D] hover:text-white"
+                                        aria-label="Remover inscricao"
+                                        title="Remover inscricao"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-sm text-[#5F5D70]">Selecione uma atividade.</p>
+                      )}
                     </div>
                   </section>
                 </section>

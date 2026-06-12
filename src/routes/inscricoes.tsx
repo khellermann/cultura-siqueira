@@ -7,15 +7,19 @@ import { SiteFooter, SiteHeader } from "@/components/SiteHeader";
 import { firebaseDb, isFirebaseConfigured } from "@/lib/firebase";
 import {
   formatOpportunityType,
+  getDefaultRegistrationFields,
   isRegistrationOpportunityOpen,
   registrationOpportunitiesCollection,
   registrationsCollection,
+  type RegistrationFieldKey,
   type RegistrationOpportunity,
 } from "@/lib/registrations";
 
 type RegistrationFormState = {
   address: string;
   birthDate: string;
+  document: string;
+  email: string;
   fullName: string;
   opportunityId: string;
   phone: string;
@@ -24,9 +28,17 @@ type RegistrationFormState = {
 const initialRegistrationForm: RegistrationFormState = {
   address: "",
   birthDate: "",
+  document: "",
+  email: "",
   fullName: "",
   opportunityId: "",
   phone: "",
+};
+
+type RegistrationReceipt = {
+  id: string;
+  opportunityTitle: string;
+  participantName: string;
 };
 
 export const Route = createFileRoute("/inscricoes")({
@@ -48,12 +60,28 @@ function Inscricoes() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [opportunities, setOpportunities] = useState<RegistrationOpportunity[]>([]);
+  const [receipt, setReceipt] = useState<RegistrationReceipt | null>(null);
   const [saving, setSaving] = useState(false);
 
   const selectedOpportunity = useMemo(
     () => opportunities.find((opportunity) => opportunity.id === form.opportunityId),
     [form.opportunityId, opportunities],
   );
+  const selectedFields = useMemo(
+    () =>
+      selectedOpportunity?.fields?.length
+        ? selectedOpportunity.fields
+        : getDefaultRegistrationFields(selectedOpportunity?.type ?? "oficina"),
+    [selectedOpportunity],
+  );
+
+  function getFormValue(fieldKey: RegistrationFieldKey) {
+    return form[fieldKey] ?? "";
+  }
+
+  function setFormValue(fieldKey: RegistrationFieldKey, value: string) {
+    setForm((current) => ({ ...current, [fieldKey]: value }));
+  }
 
   function selectOpportunity(opportunityId: string) {
     setForm((current) => ({ ...current, opportunityId }));
@@ -112,27 +140,36 @@ function Inscricoes() {
     if (!firebaseDb || !selectedOpportunity) return;
 
     const fullName = form.fullName.trim();
-    const address = form.address.trim();
-    const phone = form.phone.trim();
+    const formData = selectedFields.reduce<Record<string, string>>((current, field) => {
+      current[field.key] = getFormValue(field.key).trim();
+      return current;
+    }, {});
 
-    if (!fullName || !form.birthDate || !address || !phone || !form.opportunityId) {
+    const missingRequiredField = selectedFields.find(
+      (field) => field.required && !formData[field.key],
+    );
+    if (missingRequiredField || !form.opportunityId) {
       setMessage("Preencha todos os campos para concluir a inscricao.");
       return;
     }
 
     setSaving(true);
     setMessage("");
+    setReceipt(null);
 
     try {
-      await addDoc(collection(firebaseDb, registrationsCollection), {
-        address,
-        birthDate: form.birthDate,
+      const registrationDoc = await addDoc(collection(firebaseDb, registrationsCollection), {
+        address: formData.address ?? "",
+        birthDate: formData.birthDate ?? "",
         createdAt: serverTimestamp(),
-        fullName,
+        document: formData.document ?? "",
+        email: formData.email ?? "",
+        formData,
+        fullName: fullName || formData.fullName || "",
         opportunityId: selectedOpportunity.id,
         opportunityTitle: selectedOpportunity.title,
         opportunityType: selectedOpportunity.type,
-        phone,
+        phone: formData.phone ?? "",
       });
 
       setForm({
@@ -140,6 +177,11 @@ function Inscricoes() {
         opportunityId: selectedOpportunity.id,
       });
       setMessage("Inscricao enviada com sucesso.");
+      setReceipt({
+        id: registrationDoc.id,
+        opportunityTitle: selectedOpportunity.title,
+        participantName: fullName || formData.fullName || "",
+      });
     } catch (error) {
       console.error(error);
       setMessage("Nao foi possivel enviar a inscricao. Confira os dados e tente novamente.");
@@ -236,6 +278,14 @@ function Inscricoes() {
                   className="mb-6 h-56 w-full object-cover"
                 />
               )}
+              {selectedOpportunity?.documentUrl && (
+                <a
+                  href={selectedOpportunity.documentUrl}
+                  className="mb-6 inline-flex items-center gap-2 border-2 border-[#414296] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#414296] transition hover:bg-[#414296] hover:text-white"
+                >
+                  Ver PDF do edital
+                </a>
+              )}
               <div className="flex items-center gap-3">
                 <ClipboardList className="h-6 w-6 text-[#EF1B2D]" />
                 <h2 className="font-sans text-3xl font-black text-[#414296]">
@@ -246,6 +296,27 @@ function Inscricoes() {
               {message && (
                 <div className="mt-6 border-2 border-[#0B86D8] bg-[#F8F8FB] p-4 text-sm font-semibold text-[#414296]">
                   {message}
+                </div>
+              )}
+
+              {receipt && (
+                <div className="mt-6 border-2 border-[#00A859] bg-[#F8F8FB] p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#00A859]">
+                    Comprovante de inscricao
+                  </p>
+                  <h3 className="mt-2 font-sans text-2xl font-black text-[#414296]">
+                    {receipt.id}
+                  </h3>
+                  <p className="mt-2 text-sm text-[#5F5D70]">
+                    {receipt.participantName} - {receipt.opportunityTitle}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="mt-4 border-2 border-[#00A859] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#00A859] transition hover:bg-[#00A859] hover:text-white"
+                  >
+                    Imprimir comprovante
+                  </button>
                 </div>
               )}
 
@@ -268,56 +339,40 @@ function Inscricoes() {
                   </select>
                 </label>
 
-                <label className="grid gap-2 text-sm font-semibold text-[#414296]">
-                  Nome completo
-                  <input
-                    value={form.fullName}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, fullName: event.target.value }))
-                    }
-                    className="border-2 border-[#E2E2EA] px-4 py-3 text-[#24223A] outline-none focus:border-[#0B86D8]"
-                    required
-                  />
-                </label>
-
                 <div className="grid gap-5 md:grid-cols-2">
-                  <label className="grid gap-2 text-sm font-semibold text-[#414296]">
-                    Data de nascimento
-                    <input
-                      type="date"
-                      value={form.birthDate}
-                      onChange={(event) =>
-                        setForm((current) => ({ ...current, birthDate: event.target.value }))
-                      }
-                      className="border-2 border-[#E2E2EA] px-4 py-3 text-[#24223A] outline-none focus:border-[#0B86D8]"
-                      required
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-semibold text-[#414296]">
-                    Telefone
-                    <input
-                      value={form.phone}
-                      onChange={(event) =>
-                        setForm((current) => ({ ...current, phone: event.target.value }))
-                      }
-                      className="border-2 border-[#E2E2EA] px-4 py-3 text-[#24223A] outline-none focus:border-[#0B86D8]"
-                      placeholder="(43) 99999-9999"
-                      required
-                    />
-                  </label>
+                  {selectedFields.map((field) => (
+                    <label
+                      key={field.key}
+                      className={`grid gap-2 text-sm font-semibold text-[#414296] ${
+                        field.key === "address" ? "md:col-span-2" : ""
+                      }`}
+                    >
+                      {field.label}
+                      {field.key === "address" ? (
+                        <textarea
+                          value={getFormValue(field.key)}
+                          onChange={(event) => setFormValue(field.key, event.target.value)}
+                          className="min-h-28 border-2 border-[#E2E2EA] px-4 py-3 text-[#24223A] outline-none focus:border-[#0B86D8]"
+                          required={field.required}
+                        />
+                      ) : (
+                        <input
+                          type={
+                            field.key === "birthDate"
+                              ? "date"
+                              : field.key === "email"
+                                ? "email"
+                                : "text"
+                          }
+                          value={getFormValue(field.key)}
+                          onChange={(event) => setFormValue(field.key, event.target.value)}
+                          className="border-2 border-[#E2E2EA] px-4 py-3 text-[#24223A] outline-none focus:border-[#0B86D8]"
+                          required={field.required}
+                        />
+                      )}
+                    </label>
+                  ))}
                 </div>
-
-                <label className="grid gap-2 text-sm font-semibold text-[#414296]">
-                  Endereco
-                  <textarea
-                    value={form.address}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, address: event.target.value }))
-                    }
-                    className="min-h-28 border-2 border-[#E2E2EA] px-4 py-3 text-[#24223A] outline-none focus:border-[#0B86D8]"
-                    required
-                  />
-                </label>
 
                 <button
                   type="submit"

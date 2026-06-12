@@ -14,6 +14,7 @@ import { Route as SobreRouteImport } from './routes/sobre'
 import { Route as MuseuRouteImport } from './routes/museu'
 import { Route as InscricoesRouteImport } from './routes/inscricoes'
 import { Route as EventosRouteImport } from './routes/eventos'
+import { Route as EditaisRouteImport } from './routes/editais'
 import { Route as ContribuaRouteImport } from './routes/contribua'
 import { Route as CasaDaCulturaRouteImport } from './routes/casa-da-cultura'
 import { Route as BibliotecaRouteImport } from './routes/biblioteca'
@@ -44,6 +45,11 @@ const InscricoesRoute = InscricoesRouteImport.update({
 const EventosRoute = EventosRouteImport.update({
   id: '/eventos',
   path: '/eventos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EditaisRoute = EditaisRouteImport.update({
+  id: '/editais',
+  path: '/editais',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContribuaRoute = ContribuaRouteImport.update({
@@ -84,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/biblioteca': typeof BibliotecaRoute
   '/casa-da-cultura': typeof CasaDaCulturaRoute
   '/contribua': typeof ContribuaRoute
+  '/editais': typeof EditaisRoute
   '/eventos': typeof EventosRoute
   '/inscricoes': typeof InscricoesRoute
   '/museu': typeof MuseuRoute
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/biblioteca': typeof BibliotecaRoute
   '/casa-da-cultura': typeof CasaDaCulturaRoute
   '/contribua': typeof ContribuaRoute
+  '/editais': typeof EditaisRoute
   '/eventos': typeof EventosRoute
   '/inscricoes': typeof InscricoesRoute
   '/museu': typeof MuseuRoute
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/biblioteca': typeof BibliotecaRoute
   '/casa-da-cultura': typeof CasaDaCulturaRoute
   '/contribua': typeof ContribuaRoute
+  '/editais': typeof EditaisRoute
   '/eventos': typeof EventosRoute
   '/inscricoes': typeof InscricoesRoute
   '/museu': typeof MuseuRoute
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/biblioteca'
     | '/casa-da-cultura'
     | '/contribua'
+    | '/editais'
     | '/eventos'
     | '/inscricoes'
     | '/museu'
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/biblioteca'
     | '/casa-da-cultura'
     | '/contribua'
+    | '/editais'
     | '/eventos'
     | '/inscricoes'
     | '/museu'
@@ -152,6 +163,7 @@ export interface FileRouteTypes {
     | '/biblioteca'
     | '/casa-da-cultura'
     | '/contribua'
+    | '/editais'
     | '/eventos'
     | '/inscricoes'
     | '/museu'
@@ -166,6 +178,7 @@ export interface RootRouteChildren {
   BibliotecaRoute: typeof BibliotecaRoute
   CasaDaCulturaRoute: typeof CasaDaCulturaRoute
   ContribuaRoute: typeof ContribuaRoute
+  EditaisRoute: typeof EditaisRoute
   EventosRoute: typeof EventosRoute
   InscricoesRoute: typeof InscricoesRoute
   MuseuRoute: typeof MuseuRoute
@@ -208,6 +221,13 @@ declare module '@tanstack/react-router' {
       path: '/eventos'
       fullPath: '/eventos'
       preLoaderRoute: typeof EventosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/editais': {
+      id: '/editais'
+      path: '/editais'
+      fullPath: '/editais'
+      preLoaderRoute: typeof EditaisRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contribua': {
@@ -262,6 +282,7 @@ const rootRouteChildren: RootRouteChildren = {
   BibliotecaRoute: BibliotecaRoute,
   CasaDaCulturaRoute: CasaDaCulturaRoute,
   ContribuaRoute: ContribuaRoute,
+  EditaisRoute: EditaisRoute,
   EventosRoute: EventosRoute,
   InscricoesRoute: InscricoesRoute,
   MuseuRoute: MuseuRoute,
