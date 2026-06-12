@@ -1317,103 +1317,6 @@ function handleFlyerChange(file: File | null) {
                         )}
                       </div>
 
-                      {opportunityForm.type === "edital" && (
-                        <div className="grid gap-5">
-                          <label className="grid gap-2 text-sm font-semibold text-[#414296]">
-                            PDF do edital
-                            <span className="flex items-center gap-3 border-2 border-dashed border-[#BFC0D8] px-4 py-4 text-sm font-normal text-[#5F5D70]">
-                              <Upload className="h-5 w-5 text-[#EF1B2D]" />
-                              <input
-                                accept="application/pdf"
-                                type="file"
-                                onChange={(event) =>
-                                  handleOpportunityDocumentChange(event.target.files?.[0] ?? null)
-                                }
-                                className="w-full"
-                              />
-                            </span>
-                            {opportunityDocument && (
-                              <span className="text-xs font-normal text-[#5F5D70]">
-                                Selecionado: {opportunityDocument.name} (
-                                {(opportunityDocument.size / 1024 / 1024).toFixed(2)} MB)
-                              </span>
-                            )}
-                            {!opportunityDocument && opportunityForm.documentUrl && (
-                              <span className="flex flex-wrap items-center gap-3 text-xs font-normal text-[#5F5D70]">
-                                PDF atual sera mantido.
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setOpportunityForm((current) => ({
-                                      ...current,
-                                      documentPath: "",
-                                      documentUrl: "",
-                                    }))
-                                  }
-                                  className="font-semibold uppercase tracking-[0.14em] text-[#EF1B2D]"
-                                >
-                                  Remover PDF
-                                </button>
-                              </span>
-                            )}
-                          </label>
-
-                          <label className="grid gap-2 text-sm font-semibold text-[#414296]">
-                            Link externo para inscricoes
-                            <input
-                              value={opportunityForm.registrationUrl}
-                              onChange={(event) =>
-                                setOpportunityForm((current) => ({
-                                  ...current,
-                                  registrationUrl: event.target.value,
-                                }))
-                              }
-                              className="border-2 border-[#E2E2EA] px-4 py-3 text-[#24223A] outline-none focus:border-[#0B86D8]"
-                              placeholder="Opcional. Deixe vazio para usar o formulario interno."
-                            />
-                          </label>
-
-                          <div className="grid gap-3 text-sm font-semibold text-[#414296]">
-                            <span>Campos do formulario deste edital</span>
-                            <div className="grid gap-3 md:grid-cols-2">
-                              {registrationFieldOptions.map((field) => {
-                                const selected = opportunityForm.fields.some(
-                                  (item) => item.key === field.key,
-                                );
-                                const currentField = opportunityForm.fields.find(
-                                  (item) => item.key === field.key,
-                                );
-
-                                return (
-                                  <div key={field.key} className="border-2 border-[#E2E2EA] p-3">
-                                    <label className="flex items-center gap-3 text-sm text-[#24223A]">
-                                      <input
-                                        type="checkbox"
-                                        checked={selected}
-                                        onChange={() => toggleOpportunityField(field.key)}
-                                        className="h-4 w-4"
-                                      />
-                                      {field.label}
-                                    </label>
-                                    {selected && (
-                                      <label className="mt-3 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#5F5D70]">
-                                        <input
-                                          type="checkbox"
-                                          checked={currentField?.required !== false}
-                                          onChange={() => toggleOpportunityFieldRequired(field.key)}
-                                          className="h-4 w-4"
-                                        />
-                                        Obrigatorio
-                                      </label>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
                       <div className="grid gap-5 md:grid-cols-3">
                         <label className="grid gap-2 text-sm font-semibold text-[#414296]">
                           Data
@@ -1729,7 +1632,7 @@ function handleFlyerChange(file: File | null) {
                     <form onSubmit={handleSaveOpportunity} className="mt-8 grid gap-5">
                       <div className="grid gap-5 md:grid-cols-3">
                         <label className="grid gap-2 text-sm font-semibold text-[#414296] md:col-span-2">
-                          Nome da atividade
+                          {panel === "edicts" ? "Titulo do edital" : "Nome da atividade"}
                           <input
                             value={opportunityForm.title}
                             onChange={(event) =>
@@ -1739,7 +1642,7 @@ function handleFlyerChange(file: File | null) {
                               }))
                             }
                             className="border-2 border-[#E2E2EA] px-4 py-3 text-[#24223A] outline-none focus:border-[#0B86D8]"
-                            placeholder="Ex.: Oficina de desenho"
+                            placeholder={panel === "edicts" ? "Ex.: Edital de fomento cultural" : "Ex.: Oficina de desenho"}
                             required
                           />
                         </label>
@@ -1784,6 +1687,115 @@ function handleFlyerChange(file: File | null) {
                           placeholder="Informe detalhes importantes para quem vai se inscrever."
                         />
                       </label>
+
+                      {panel === "edicts" && (
+                        <div className="grid gap-3 text-sm font-semibold text-[#414296]">
+                          <span>PDF do edital</span>
+                          <label className="flex cursor-pointer flex-col items-center justify-center gap-3 border-2 border-dashed border-[#D8D8E8] bg-[#F8F8FB] px-5 py-8 text-center transition hover:border-[#EF1B2D]">
+                            <FileText className="h-6 w-6 text-[#EF1B2D]" />
+                            <span className="text-xs uppercase tracking-[0.18em] text-[#414296]">
+                              Selecionar PDF
+                            </span>
+                            <input
+                              type="file"
+                              accept="application/pdf"
+                              onChange={(event) =>
+                                handleOpportunityDocumentChange(event.target.files?.[0] ?? null)
+                              }
+                              className="sr-only"
+                            />
+                          </label>
+                          {opportunityDocument && (
+                            <p className="text-xs font-normal text-[#5F5D70]">
+                              Selecionado: {opportunityDocument.name} (
+                              {(opportunityDocument.size / 1024 / 1024).toFixed(2)} MB)
+                            </p>
+                          )}
+                          {!opportunityDocument && opportunityForm.documentUrl && (
+                            <div className="flex flex-wrap items-center gap-3 border-2 border-[#E2E2EA] p-3">
+                              <a
+                                href={opportunityForm.documentUrl}
+                                className="inline-flex items-center gap-2 text-sm font-semibold text-[#414296] underline"
+                              >
+                                <FileText className="h-4 w-4" />
+                                PDF atual do edital
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOpportunityForm((current) => ({
+                                    ...current,
+                                    documentPath: "",
+                                    documentUrl: "",
+                                  }))
+                                }
+                                className="inline-flex items-center gap-2 border-2 border-[#EF1B2D] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#EF1B2D] transition hover:bg-[#EF1B2D] hover:text-white"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Remover PDF
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {panel === "edicts" && (
+                        <div className="grid gap-5">
+                          <label className="grid gap-2 text-sm font-semibold text-[#414296]">
+                            Link externo para inscricoes
+                            <input
+                              value={opportunityForm.registrationUrl}
+                              onChange={(event) =>
+                                setOpportunityForm((current) => ({
+                                  ...current,
+                                  registrationUrl: event.target.value,
+                                }))
+                              }
+                              className="border-2 border-[#E2E2EA] px-4 py-3 text-[#24223A] outline-none focus:border-[#0B86D8]"
+                              placeholder="Opcional. Deixe vazio para usar o formulario interno."
+                            />
+                          </label>
+
+                          <div className="grid gap-3 text-sm font-semibold text-[#414296]">
+                            <span>Campos do formulario deste edital</span>
+                            <div className="grid gap-3 md:grid-cols-2">
+                              {registrationFieldOptions.map((field) => {
+                                const selected = opportunityForm.fields.some(
+                                  (item) => item.key === field.key,
+                                );
+                                const currentField = opportunityForm.fields.find(
+                                  (item) => item.key === field.key,
+                                );
+
+                                return (
+                                  <div key={field.key} className="border-2 border-[#E2E2EA] p-3">
+                                    <label className="flex items-center gap-3 text-sm text-[#24223A]">
+                                      <input
+                                        type="checkbox"
+                                        checked={selected}
+                                        onChange={() => toggleOpportunityField(field.key)}
+                                        className="h-4 w-4"
+                                      />
+                                      {field.label}
+                                    </label>
+                                    {selected && (
+                                      <label className="mt-3 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#5F5D70]">
+                                        <input
+                                          type="checkbox"
+                                          checked={currentField?.required !== false}
+                                          onChange={() => toggleOpportunityFieldRequired(field.key)}
+                                          className="h-4 w-4"
+                                        />
+                                        Obrigatorio
+                                      </label>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="grid gap-3 text-sm font-semibold text-[#414296]">
                         <span>Banner da oficina, curso ou evento</span>
