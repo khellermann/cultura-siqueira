@@ -296,10 +296,19 @@ export const Route = createFileRoute("/admin")({
 
 async function checkAdminAccess(user: User | null) {
   if (!user?.email || !firebaseDb) return false;
-  const email = normalizeEmail(user.email);
-  if (isPrimaryAdmin(email)) return true;
-  const adminDoc = await getDoc(doc(firebaseDb, adminUsersCollection, email));
-  return adminDoc.exists();
+  const normalizedEmail = normalizeEmail(user.email);
+  if (isPrimaryAdmin(normalizedEmail)) return true;
+  try {
+    const directAdminDoc = await getDoc(doc(firebaseDb, adminUsersCollection, user.email));
+    if (directAdminDoc.exists()) return true;
+
+    if (normalizedEmail === user.email) return false;
+    const normalizedAdminDoc = await getDoc(doc(firebaseDb, adminUsersCollection, normalizedEmail));
+    return normalizedAdminDoc.exists();
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
 }
 
 function Admin() {
@@ -774,6 +783,7 @@ function handleFlyerChange(file: File | null) {
     event.preventDefault();
     if (!firebaseDb || !user?.email || !canManageAdmins) return;
 
+    const typedEmail = adminEmail.trim();
     const email = normalizeEmail(adminEmail);
     if (!email) return;
 
@@ -781,6 +791,7 @@ function handleFlyerChange(file: File | null) {
       createdAt: serverTimestamp(),
       createdBy: user.email,
       email,
+      originalEmail: typedEmail,
     });
 
     setAdminEmail("");
@@ -1096,7 +1107,7 @@ function handleFlyerChange(file: File | null) {
                 Acesso administrativo
               </h2>
               <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-[#5F5D70]">
-                Entre com sua conta Google autorizada para gerenciar o conteudo do site.
+                Entre com a conta Google que foi autorizada na lista de administradores.
               </p>
               <button
                 type="button"
@@ -1116,7 +1127,7 @@ function handleFlyerChange(file: File | null) {
         {authReady && access === "denied" && (
           <AdminNotice
             title="Acesso nao autorizado"
-            text={`Entre com ${primaryAdminEmail} ou peca para esse administrador liberar seu e-mail.`}
+            text={`Voce entrou com ${tokenEmail || user?.email || "um e-mail nao identificado"}. Entre com ${primaryAdminEmail} ou confira se este e-mail esta cadastrado exatamente em Administradores.`}
           />
         )}
 

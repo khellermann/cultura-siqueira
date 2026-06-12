@@ -4,7 +4,10 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function admin() {
-      return signedIn() && request.auth.token.email == "khellermann@gmail.com";
+      return signedIn() && (
+        request.auth.token.email == "khellermann@gmail.com" ||
+        exists(/databases/$(database)/documents/admin_users/$(request.auth.token.email))
+      );
     }
 
     match /profiles/{userId} {
@@ -41,7 +44,7 @@ service cloud.firestore {
     }
 
     match /admin_users/{email} {
-      allow read: if admin();
+      allow read: if admin() || (signedIn() && request.auth.token.email == email);
       allow create, update, delete: if admin();
     }
 
