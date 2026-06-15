@@ -1,201 +1,37 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Clock, Images, MapPin } from "lucide-react";
+import { ArrowRight, Clock, Images, MapPin, X } from "lucide-react";
+import type { ReactNode } from "react";
+import { useMemo, useState } from "react";
 
 import { PageHeader, SiteFooter } from "@/components/SiteHeader";
-import { collection } from "@/lib/collection";
-import heroAsset from "@/assets/museu_54_1.asset.json";
+import {
+  museumFeaturedItems,
+  museumGalleryFilters,
+  museumGalleryItems,
+  museumThemes,
+  type MuseumGalleryFilter,
+  type MuseumGalleryItem,
+} from "@/lib/museumCatalog";
 
-const hero = heroAsset.url;
+const hero = "/museu-galeria/museu-galeria-12.jpeg";
 
-const galleryPhotos = [
-  {
-    label: "Galeria de prefeitos",
-    category: "Memória política",
-    alt: "Parede com retratos dos prefeitos de Siqueira Campos",
-  },
-  {
-    label: "Matérias sobre o museu",
-    category: "Imprensa e memória",
-    alt: "Quadros e matérias históricas sobre o museu",
-  },
-  {
-    label: "Máquina de escrever",
-    category: "Objetos do cotidiano",
-    alt: "Máquina de escrever verde e objetos antigos em vitrine",
-  },
-  {
-    label: "Uniforme e documentos",
-    category: "Acervo militar",
-    alt: "Uniforme antigo, fotografias e documentos históricos em vitrine",
-  },
-  {
-    label: "Vitrine de objetos antigos",
-    category: "Acervo catalogado",
-    alt: "Peças antigas catalogadas em vitrine de vidro",
-  },
-  {
-    label: "Aldeia Indígena do Pinhalzinho",
-    category: "Cultura indígena",
-    alt: "Painel sobre a Aldeia Indígena do Pinhalzinho",
-  },
-  {
-    label: "Utensílios e peças antigas",
-    category: "Acervo catalogado",
-    alt: "Utensílios antigos e peças catalogadas em vitrine de vidro",
-  },
-  {
-    label: "Cristaleira e louças",
-    category: "Mobiliário histórico",
-    alt: "Mobiliário antigo com louças preservadas no museu",
-  },
-  {
-    label: "Mesa de época",
-    category: "Ambiente doméstico",
-    alt: "Mesa e cadeiras antigas em ambiente expositivo",
-  },
-  {
-    label: "Câmeras fotográficas",
-    category: "Tecnologia e imagem",
-    alt: "Câmeras fotográficas antigas expostas em vitrine",
-  },
-  {
-    label: "Escultura indígena",
-    category: "Cultura indígena",
-    alt: "Escultura e registros sobre a cultura indígena local",
-  },
-  {
-    label: "Sala principal",
-    category: "Espaços do museu",
-    alt: "Sala principal do museu com vitrines e assoalho de madeira",
-  },
-  {
-    label: "Sala expositiva",
-    category: "Espaços do museu",
-    alt: "Sala expositiva com vitrines e fotografias históricas",
-  },
-  {
-    label: "Instrumentos de laboratório",
-    category: "Ciência e ofícios",
-    alt: "Instrumentos e objetos de laboratório preservados em vitrine",
-  },
-  {
-    label: "Sala com esculturas",
-    category: "Espaços do museu",
-    alt: "Sala com esculturas, janelas abertas e piso de madeira",
-  },
-  {
-    label: "Escrivaninha histórica",
-    category: "Mobiliário histórico",
-    alt: "Escrivaninha antiga com livros, documentos e objetos de escritório",
-  },
-  {
-    label: "Ambiente doméstico",
-    category: "Mobiliário histórico",
-    alt: "Ambiente com mobiliário histórico, cristaleira e louças",
-  },
-  {
-    label: "Traje religioso",
-    category: "Religiosidade",
-    alt: "Traje religioso vermelho e vitrines em sala expositiva",
-  },
-  {
-    label: "Sala religiosa",
-    category: "Religiosidade",
-    alt: "Sala religiosa com documentos, mobiliário e vestimenta",
-  },
-  {
-    label: "Religiosidade e cultura indígena",
-    category: "Memória cultural",
-    alt: "Sala dedicada à religiosidade e cultura indígena",
-  },
-  {
-    label: "Objetos do cotidiano",
-    category: "Espaços do museu",
-    alt: "Sala ampla com vitrines e objetos do cotidiano",
-  },
-  {
-    label: "Vitrines do acervo",
-    category: "Espaços do museu",
-    alt: "Vitrines do museu em sala com piso de madeira",
-  },
-  {
-    label: "Moradia antiga",
-    category: "Ambiente histórico",
-    alt: "Cenário de moradia antiga preservado no museu",
-  },
-  {
-    label: "Corredor expositivo",
-    category: "Religiosidade",
-    alt: "Corredor expositivo com traje religioso e vitrines",
-  },
-  {
-    label: "Sala dos prefeitos",
-    category: "Memória política",
-    alt: "Sala dos prefeitos com retratos e objetos históricos",
-  },
-  {
-    label: "Recortes de jornal",
-    category: "Imprensa e memória",
-    alt: "Sala expositiva com vitrines e recortes de jornal",
-  },
-  {
-    label: "Prefeitos e secretários",
-    category: "Memória política",
-    alt: "Ambiente da galeria de prefeitos e secretários do município",
-  },
-  {
-    label: "Jornais e registros",
-    category: "Imprensa e memória",
-    alt: "Sala com vitrines, jornais e registros históricos",
-  },
-  {
-    label: "Ambiente rural antigo",
-    category: "Ambiente histórico",
-    alt: "Ambiente de moradia antiga com objetos rurais",
-  },
-  {
-    label: "Reconstituição histórica",
-    category: "Ambiente histórico",
-    alt: "Reconstituição de ambiente antigo com mobiliário e utensílios",
-  },
-  {
-    label: "Colônia Mineira 1905",
-    category: "Memória rural",
-    alt: "Sala Colônia Mineira 1905 com objetos rurais",
-  },
-  {
-    label: "Ferramentas rurais",
-    category: "Memória rural",
-    alt: "Acervo da Colônia Mineira com ferramentas e utensílios",
-  },
-  {
-    label: "Painéis da Colônia Mineira",
-    category: "Memória rural",
-    alt: "Painéis e objetos históricos da Colônia Mineira",
-  },
-].map((photo, index) => ({
-  ...photo,
-  src: `/museu-galeria/museu-galeria-${String(index + 1).padStart(2, "0")}.jpeg`,
-}));
-
-const featuredGalleryPhotos = [galleryPhotos[0], galleryPhotos[2], galleryPhotos[9]];
-const remainingGalleryPhotos = galleryPhotos.filter(
-  (photo) => !featuredGalleryPhotos.includes(photo),
-);
+const museumIntro =
+  "O Museu Histórico Municipal preserva parte importante da trajetória de Siqueira Campos. Entre salas, vitrines e ambientes reconstituídos, o visitante encontra objetos do cotidiano, documentos, fotografias, ferramentas, mobiliário, peças religiosas e registros que revelam diferentes momentos da vida local.";
 
 export const Route = createFileRoute("/museu")({
   head: () => ({
     meta: [
-      { title: "Museu — Secretaria Municipal de Cultura" },
+      { title: "Museu Histórico Municipal - Secretaria Municipal de Cultura" },
       {
         name: "description",
         content:
-          "Museu Histórico Municipal de Siqueira Campos: acervo, memória, visitas e exposições.",
+          "Museu Histórico Municipal de Siqueira Campos: acervo, memória, visitas, ambientes históricos e galeria de imagens.",
       },
       { property: "og:title", content: "Museu Histórico Municipal de Siqueira Campos" },
       {
         property: "og:description",
-        content: "Um espaço de preservação da memória histórica e cultural do município.",
+        content:
+          "Um espaço de preservação da memória histórica e cultural de Siqueira Campos.",
       },
       { property: "og:image", content: hero },
     ],
@@ -204,7 +40,13 @@ export const Route = createFileRoute("/museu")({
 });
 
 function Museu() {
-  const highlights = collection.slice(0, 3);
+  const [activeFilter, setActiveFilter] = useState<MuseumGalleryFilter>("Todos");
+  const [selectedPhoto, setSelectedPhoto] = useState<MuseumGalleryItem | null>(null);
+
+  const filteredGallery = useMemo(() => {
+    if (activeFilter === "Todos") return museumGalleryItems;
+    return museumGalleryItems.filter((item) => item.category === activeFilter);
+  }, [activeFilter]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -214,23 +56,24 @@ function Museu() {
         <div className="mx-auto grid max-w-7xl gap-12 px-6 py-14 md:grid-cols-12 md:px-10 md:py-24">
           <div className="md:col-span-5">
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-              — Museu Histórico Municipal
+              Museu Histórico Municipal
             </p>
             <h1 className="mt-6 font-display text-5xl leading-[1.05] md:text-7xl">
-              A memória de Siqueira Campos em exposição.
+              A memória de Siqueira Campos preservada em ambientes, objetos e histórias.
             </h1>
             <p className="mt-8 text-lg leading-relaxed text-muted-foreground">
-              O Museu preserva fotografias, documentos, mobiliário, peças religiosas, objetos do
-              cotidiano e registros da vida social e política do município.
+              O Museu reúne fotografias, documentos, mobiliário, peças religiosas, objetos do
+              cotidiano, registros políticos, memória rural e referências culturais que ajudam a
+              contar a formação do município e de sua comunidade.
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
-              <Link
-                to="/acervo"
+              <a
+                href="#galeria"
                 className="inline-flex items-center gap-2 bg-foreground px-6 py-4 text-xs uppercase tracking-[0.22em] text-background transition hover:bg-accent hover:text-accent-foreground"
               >
-                Ver acervo
+                Ver galeria
                 <ArrowRight className="h-4 w-4" />
-              </Link>
+              </a>
               <Link
                 to="/visite"
                 className="inline-flex items-center gap-2 border border-border px-6 py-4 text-xs uppercase tracking-[0.22em] transition hover:border-foreground"
@@ -241,19 +84,19 @@ function Museu() {
           </div>
           <div className="md:col-span-7">
             <div className="relative overflow-hidden border border-border bg-secondary/40 p-3">
-            <img
-              src={hero}
-              alt="Salão principal do Museu de Siqueira Campos"
-              className="aspect-[4/3] w-full object-cover"
-              width={1400}
-              height={1050}
-            />
+              <img
+                src={hero}
+                alt="Sala principal do Museu Histórico Municipal com vitrines e assoalho de madeira"
+                className="aspect-[4/3] w-full object-cover"
+                width={1400}
+                height={1050}
+              />
               <div className="absolute bottom-3 left-3 right-3 border border-white/25 bg-black/55 px-5 py-4 text-background backdrop-blur-sm">
                 <p className="text-[10px] uppercase tracking-[0.28em] text-background/70">
-                  Patrimonio e memoria
+                  Patrimônio e memória
                 </p>
                 <p className="mt-2 font-display text-2xl leading-tight">
-                  Um acervo vivo para contar a historia local.
+                  Um acervo vivo para contar a história local.
                 </p>
               </div>
             </div>
@@ -263,126 +106,221 @@ function Museu() {
 
       <section>
         <div className="mx-auto grid max-w-7xl gap-6 px-6 py-16 md:grid-cols-3 md:px-10">
-          <div className="border border-border p-6">
-            <Images className="h-6 w-6 text-accent" />
-            <h2 className="mt-8 font-display text-2xl">Acervo permanente</h2>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              Peças catalogadas, fotografias históricas e objetos doados pela comunidade.
-            </p>
-          </div>
-          <div className="border border-border p-6">
-            <Clock className="h-6 w-6 text-accent" />
-            <h2 className="mt-8 font-display text-2xl">Visitação</h2>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              Atendimento ao público, visitas mediadas e atividades educativas para escolas.
-            </p>
-          </div>
-          <div className="border border-border p-6">
-            <MapPin className="h-6 w-6 text-accent" />
-            <h2 className="mt-8 font-display text-2xl">Localização</h2>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              Espaço cultural localizado no centro de Siqueira Campos, no Norte Pioneiro.
-            </p>
-          </div>
+          <InfoCard
+            icon={<Images className="h-6 w-6 text-accent" />}
+            title="Acervo permanente"
+            description="Peças catalogadas, fotografias históricas, ambientes reconstituídos e objetos doados pela comunidade."
+          />
+          <InfoCard
+            icon={<Clock className="h-6 w-6 text-accent" />}
+            title="Visitação"
+            description="Atendimento ao público, visitas mediadas e atividades educativas para escolas e grupos."
+          />
+          <InfoCard
+            icon={<MapPin className="h-6 w-6 text-accent" />}
+            title="Localização"
+            description="Espaço cultural localizado em Siqueira Campos, no Norte Pioneiro do Paraná."
+          />
         </div>
       </section>
 
-      <section className="border-y border-border bg-background">
-        <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-28">
-          <div className="mb-12 max-w-3xl">
+      <section className="border-y border-border bg-secondary/35">
+        <div className="mx-auto grid max-w-7xl gap-12 px-6 py-20 md:grid-cols-12 md:px-10 md:py-28">
+          <div className="md:col-span-4">
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-              — Galeria do Museu
+              Percursos do acervo
             </p>
-            <h2 className="mt-4 font-display text-4xl md:text-5xl">
-              Acervo identificado por ambientes e objetos
+            <h2 className="mt-4 font-display text-4xl leading-tight md:text-5xl">
+              Seis caminhos para conhecer a história local
             </h2>
-            <p className="mt-5 text-base leading-relaxed text-muted-foreground">
-              As fotos foram organizadas por assunto para destacar ambientes, vitrines, documentos,
-              objetos históricos e registros da memória de Siqueira Campos.
-            </p>
+            <p className="mt-6 text-base leading-relaxed text-muted-foreground">{museumIntro}</p>
           </div>
-
-          <div className="mb-14 grid gap-4 md:grid-cols-3">
-            {featuredGalleryPhotos.map((photo) => (
-              <figure key={photo.src} className="group border border-border bg-card p-3">
+          <div className="grid gap-4 md:col-span-8 md:grid-cols-2">
+            {museumThemes.map((theme) => (
+              <article key={theme.title} className="group border border-border bg-background p-3">
                 <div className="overflow-hidden bg-muted">
                   <img
-                    src={photo.src}
-                    alt={photo.alt}
+                    src={theme.image}
+                    alt={theme.alt}
                     loading="lazy"
-                    className="aspect-[4/3] w-full object-cover transition duration-700 group-hover:scale-[1.03]"
+                    className="aspect-[16/10] w-full object-cover transition duration-700 group-hover:scale-[1.03]"
                   />
                 </div>
-                <figcaption className="pt-4">
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-accent">
-                    {photo.category}
+                <div className="p-4">
+                  <h3 className="font-display text-2xl leading-tight">{theme.title}</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                    {theme.description}
                   </p>
-                  <h3 className="mt-2 font-display text-2xl">{photo.label}</h3>
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-
-          <div className="columns-1 gap-5 sm:columns-2 lg:columns-3">
-            {remainingGalleryPhotos.map((photo) => (
-              <figure
-                key={photo.src}
-                className="mb-5 break-inside-avoid overflow-hidden border border-border bg-card"
-              >
-                <img src={photo.src} alt={photo.alt} loading="lazy" className="w-full" />
-                <figcaption className="border-t border-border p-4">
-                  <p className="text-[10px] uppercase tracking-[0.26em] text-accent">
-                    {photo.category}
-                  </p>
-                  <h3 className="mt-2 font-display text-xl leading-tight">{photo.label}</h3>
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-secondary/40">
-        <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-28">
-          <div className="mb-12 flex items-end justify-between gap-6">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                — Destaques
-              </p>
-              <h2 className="mt-4 font-display text-4xl md:text-5xl">Peças do acervo</h2>
-            </div>
-            <Link
-              to="/acervo"
-              className="hidden whitespace-nowrap text-xs uppercase tracking-[0.25em] text-foreground underline-offset-8 hover:underline md:block"
-            >
-              Ver tudo →
-            </Link>
-          </div>
-          <div className="grid gap-x-8 gap-y-12 md:grid-cols-3">
-            {highlights.map((piece) => (
-              <article key={piece.title} className="group">
-                <div className="overflow-hidden bg-muted">
-                  <img
-                    src={piece.url}
-                    alt={piece.title}
-                    loading="lazy"
-                    className="aspect-[4/5] w-full object-cover transition duration-700 group-hover:scale-[1.03]"
-                  />
                 </div>
-                <p className="mt-5 text-[10px] uppercase tracking-[0.3em] text-accent">
-                  {piece.category}
-                </p>
-                <h3 className="mt-2 font-display text-2xl leading-tight">{piece.title}</h3>
-                <p className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                  {piece.period}
-                </p>
               </article>
             ))}
           </div>
         </div>
       </section>
 
+      <section className="bg-background">
+        <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-28">
+          <div className="mb-12 max-w-3xl">
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+              Destaques do acervo
+            </p>
+            <h2 className="mt-4 font-display text-4xl md:text-5xl">
+              Peças, salas e registros em evidência
+            </h2>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {museumFeaturedItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setSelectedPhoto(item)}
+                className="group border border-border bg-card p-3 text-left transition hover:-translate-y-1 hover:border-accent"
+              >
+                <div className="overflow-hidden bg-muted">
+                  <img
+                    src={item.image}
+                    alt={item.alt}
+                    loading="lazy"
+                    className="aspect-[4/3] w-full object-cover transition duration-700 group-hover:scale-[1.03]"
+                  />
+                </div>
+                <div className="p-4">
+                  <p className="text-[10px] uppercase tracking-[0.26em] text-accent">
+                    {item.category}
+                  </p>
+                  <h3 className="mt-2 font-display text-2xl leading-tight">{item.title}</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                    {item.description}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="galeria" className="border-y border-border bg-background">
+        <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-28">
+          <div className="mb-10 max-w-3xl">
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+              Galeria do Museu
+            </p>
+            <h2 className="mt-4 font-display text-4xl md:text-5xl">
+              Acervo identificado por ambientes e objetos
+            </h2>
+            <p className="mt-5 text-base leading-relaxed text-muted-foreground">
+              Explore imagens do acervo e conheça ambientes que guardam histórias da cidade, da
+              vida rural, dos ofícios, da religiosidade, da cultura indígena e da memória política
+              do município.
+            </p>
+          </div>
+
+          <div className="mb-10 flex flex-wrap gap-3">
+            {museumGalleryFilters.map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => setActiveFilter(filter)}
+                className={`border px-4 py-3 text-xs uppercase tracking-[0.18em] transition ${
+                  activeFilter === filter
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border bg-background hover:border-foreground"
+                }`}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
+
+          <div className="columns-1 gap-5 sm:columns-2 lg:columns-3">
+            {filteredGallery.map((photo) => (
+              <button
+                key={photo.id}
+                type="button"
+                onClick={() => setSelectedPhoto(photo)}
+                className="mb-5 block w-full break-inside-avoid overflow-hidden border border-border bg-card text-left transition hover:-translate-y-1 hover:border-accent"
+              >
+                <img src={photo.image} alt={photo.alt} loading="lazy" className="w-full" />
+                <span className="block border-t border-border p-4">
+                  <span className="block text-[10px] uppercase tracking-[0.26em] text-accent">
+                    {photo.category}
+                  </span>
+                  <span className="mt-2 block font-display text-xl leading-tight">
+                    {photo.title}
+                  </span>
+                  <span className="mt-3 block text-sm leading-relaxed text-muted-foreground">
+                    {photo.description}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {selectedPhoto && (
+        <GalleryDialog photo={selectedPhoto} onClose={() => setSelectedPhoto(null)} />
+      )}
+
       <SiteFooter />
+    </div>
+  );
+}
+
+function InfoCard({
+  icon,
+  title,
+  description,
+}: {
+  icon: ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="border border-border p-6">
+      {icon}
+      <h2 className="mt-8 font-display text-2xl">{title}</h2>
+      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+function GalleryDialog({
+  photo,
+  onClose,
+}: {
+  photo: MuseumGalleryItem;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-4 py-6"
+      role="dialog"
+      aria-modal="true"
+      aria-label={photo.title}
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[92vh] w-full max-w-5xl overflow-auto border border-white/20 bg-background"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-border p-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.26em] text-accent">{photo.category}</p>
+            <h2 className="mt-2 font-display text-3xl leading-tight">{photo.title}</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center border border-border transition hover:border-foreground"
+            aria-label="Fechar imagem"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <img src={photo.image} alt={photo.alt} className="max-h-[68vh] w-full object-contain bg-black" />
+        <p className="p-5 text-base leading-relaxed text-muted-foreground">{photo.description}</p>
+      </div>
     </div>
   );
 }

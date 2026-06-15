@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
-import { CalendarDays, Landmark, LibraryBig, Music2, PenLine, Theater } from "lucide-react";
+import { ArrowRight, CalendarDays, Landmark, LibraryBig, Music2, PenLine, Theater } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -23,6 +23,7 @@ import {
   type CulturalEvent,
 } from "@/lib/events";
 import { firebaseDb } from "@/lib/firebase";
+import { museumHomeHighlights } from "@/lib/museumCatalog";
 import { richTextToPlainText } from "@/lib/richText";
 
 const areas = [
@@ -241,6 +242,60 @@ function Index() {
                 </Link>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-y border-[#E7E7EF] bg-[#F8F8FB]">
+        <div className="mx-auto grid max-w-7xl gap-12 px-6 py-20 md:grid-cols-12 md:px-10 md:py-28">
+          <div className="md:col-span-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#EF1B2D]">
+              Museu Histórico Municipal
+            </p>
+            <h2 className="mt-4 max-w-xl font-sans text-4xl font-black leading-tight tracking-normal text-[#414296] md:text-5xl">
+              A memória de Siqueira Campos preservada em ambientes, objetos e histórias.
+            </h2>
+            <p className="mt-7 max-w-xl text-lg leading-relaxed text-[#4B4A5F]">
+              Entre salas, vitrines e objetos preservados, o Museu Histórico Municipal aproxima
+              moradores e visitantes da memória de Siqueira Campos.
+            </p>
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-[#5F5D70]">
+              Um espaço dedicado à preservação da memória local, reunindo objetos, fotografias,
+              documentos, ambientes reconstituídos e registros da vida cultural, social e política
+              do município.
+            </p>
+            <Link
+              to="/museu"
+              className="mt-9 inline-flex items-center justify-center gap-3 bg-[#414296] px-7 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-[#00A859]"
+            >
+              Conhecer o Museu
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 md:col-span-7">
+            {museumHomeHighlights.map((item, index) => (
+              <Link
+                key={item.image}
+                to="/museu"
+                className={`group block overflow-hidden border-2 border-white bg-white shadow-[0_18px_48px_rgba(65,66,150,0.1)] transition hover:-translate-y-1 hover:border-[#F7A600] ${
+                  index === 0 ? "sm:row-span-2" : ""
+                }`}
+              >
+                <img
+                  src={item.image}
+                  alt={item.alt}
+                  loading="lazy"
+                  className={`w-full object-cover transition duration-700 group-hover:scale-[1.03] ${
+                    index === 0 ? "h-full min-h-[24rem]" : "aspect-[4/3]"
+                  }`}
+                />
+                <div className="border-t border-[#E7E7EF] px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#414296]">
+                    {item.title}
+                  </p>
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
       </section>

@@ -96,9 +96,21 @@ import {
   type RegistrationOpportunityDocument,
   type RegistrationOpportunityType,
 } from "@/lib/registrations";
+import {
+  visitRequestsCollection,
+  type VisitRequest,
+} from "@/lib/visitRequests";
 
 type AdminAccess = "loading" | "allowed" | "denied" | "signed-out";
-type AdminPanel = "overview" | "events" | "registrations" | "edicts" | "submissions" | "pages" | "admins";
+type AdminPanel =
+  | "overview"
+  | "events"
+  | "registrations"
+  | "edicts"
+  | "submissions"
+  | "visitRequests"
+  | "pages"
+  | "admins";
 
 const calendarWeekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"] as const;
 const calendarMonthNames = [
@@ -190,6 +202,7 @@ const adminPanels = [
   { id: "registrations", label: "Cursos e oficinas", icon: ClipboardList },
   { id: "edicts", label: "Editais", icon: FileText },
   { id: "submissions", label: "Inscricoes recebidas", icon: Download },
+  { id: "visitRequests", label: "Visitas", icon: CalendarDays },
   { id: "pages", label: "Paginas", icon: FileText },
 ] satisfies Array<{ id: AdminPanel; label: string; icon: LucideIcon }>;
 
@@ -330,6 +343,7 @@ function Admin() {
   const [panel, setPanel] = useState<AdminPanel>("overview");
   const [registrationEntries, setRegistrationEntries] = useState<RegistrationEntry[]>([]);
   const [selectedSubmissionOpportunityId, setSelectedSubmissionOpportunityId] = useState("");
+  const [visitRequests, setVisitRequests] = useState<VisitRequest[]>([]);
   const [saving, setSaving] = useState(false);
   const [savingMenu, setSavingMenu] = useState(false);
   const [tokenEmail, setTokenEmail] = useState("");
@@ -341,7 +355,13 @@ function Admin() {
   async function loadAdminData() {
     if (!firebaseDb) return;
 
-    const [adminsSnapshot, eventsSnapshot, opportunitiesSnapshot, registrationsSnapshot] =
+    const [
+      adminsSnapshot,
+      eventsSnapshot,
+      opportunitiesSnapshot,
+      registrationsSnapshot,
+      visitRequestsSnapshot,
+    ] =
       await Promise.all([
         getDocs(query(collection(firebaseDb, adminUsersCollection), orderBy("email", "asc"))),
         getDocs(query(collection(firebaseDb, eventsCollection), orderBy("date", "desc"))),
@@ -353,6 +373,9 @@ function Admin() {
         ),
         getDocs(
           query(collection(firebaseDb, registrationsCollection), orderBy("createdAt", "desc")),
+        ),
+        getDocs(
+          query(collection(firebaseDb, visitRequestsCollection), orderBy("createdAt", "desc")),
         ),
       ]);
 
@@ -381,6 +404,13 @@ function Admin() {
       registrationsSnapshot.docs.map((registrationDoc) => ({
         id: registrationDoc.id,
         ...(registrationDoc.data() as Omit<RegistrationEntry, "id">),
+      })),
+    );
+
+    setVisitRequests(
+      visitRequestsSnapshot.docs.map((visitRequestDoc) => ({
+        id: visitRequestDoc.id,
+        ...(visitRequestDoc.data() as Omit<VisitRequest, "id">),
       })),
     );
 
@@ -973,6 +1003,13 @@ function handleFlyerChange(file: File | null) {
     await loadAdminData();
   }
 
+  async function handleDeleteVisitRequest(requestId: string) {
+    if (!firebaseDb) return;
+    await deleteDoc(doc(firebaseDb, visitRequestsCollection, requestId));
+    setMessage("Solicitação de visita removida.");
+    await loadAdminData();
+  }
+
   function getEntryValue(entry: RegistrationEntry, fieldKey: string) {
     const formValue = entry.formData?.[fieldKey];
     if (formValue) return formValue;
@@ -1089,7 +1126,7 @@ function handleFlyerChange(file: File | null) {
                 Painel administrativo
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[#5F5D70] md:text-base">
-                Gerencie eventos, inscricoes, paginas do site e usuarios autorizados em um so lugar.
+                Gerencie eventos, inscrições, páginas do site e usuários autorizados em um só lugar.
               </p>
             </div>
 
@@ -1137,7 +1174,7 @@ function handleFlyerChange(file: File | null) {
         )}
 
         {access === "loading" && (
-          <AdminNotice title="Carregando" text="Conferindo permissao administrativa." />
+          <AdminNotice title="Carregando" text="Conferindo permissão administrativa." />
         )}
 
         {authReady && access === "denied" && (
@@ -1195,7 +1232,7 @@ function handleFlyerChange(file: File | null) {
 
               {panel === "overview" && (
                 <section className="grid gap-8">
-                  <div className="grid gap-4 md:grid-cols-3">
+                  <div className="grid gap-4 md:grid-cols-4">
                     <StatCard
                       icon={CalendarDays}
                       label="Eventos cadastrados"
@@ -1204,23 +1241,29 @@ function handleFlyerChange(file: File | null) {
                     />
                     <StatCard
                       icon={CalendarDays}
-                      label="Proximos eventos"
+                      label="Próximos eventos"
                       value={upcomingEvents.length}
                       tone="#00A859"
                     />
                     <StatCard
                       icon={ClipboardList}
-                      label="Inscricoes recebidas"
+                      label="Inscrições recebidas"
                       value={registrationEntries.length}
                       tone="#F7A600"
+                    />
+                    <StatCard
+                      icon={CalendarDays}
+                      label="Visitas solicitadas"
+                      value={visitRequests.length}
+                      tone="#EF1B2D"
                     />
                   </div>
 
                   <section className="border-2 border-[#E2E2EA] bg-white p-6 md:p-8">
                     <h2 className="font-sans text-3xl font-black text-[#414296]">
-                      Atalhos de gestao
+                      Atalhos de gestão
                     </h2>
-                    <div className="mt-6 grid gap-4 md:grid-cols-3">
+                    <div className="mt-6 grid gap-4 md:grid-cols-4">
                       <AdminShortcut
                         icon={CalendarDays}
                         title="Cadastrar evento"
@@ -1229,14 +1272,20 @@ function handleFlyerChange(file: File | null) {
                       />
                       <AdminShortcut
                         icon={ClipboardList}
-                        title="Organizar inscricoes"
-                        text="Cadastre oficinas, cursos e eventos com link publico de inscricao."
+                        title="Organizar inscrições"
+                        text="Cadastre oficinas, cursos e eventos com link publico de inscrição."
                         onClick={() => setPanel("registrations")}
                       />
                       <AdminShortcut
+                        icon={CalendarDays}
+                        title="Solicitações de visita"
+                        text="Veja escolas e grupos que pediram agendamento pelo site."
+                        onClick={() => setPanel("visitRequests")}
+                      />
+                      <AdminShortcut
                         icon={FileText}
-                        title="Revisar paginas"
-                        text="Veja as paginas publicas e acompanhe o que falta virar editor."
+                        title="Revisar páginas"
+                        text="Veja as páginas públicas e acompanhe o que falta virar editor."
                         onClick={() => setPanel("pages")}
                       />
                     </div>
@@ -1266,14 +1315,14 @@ function handleFlyerChange(file: File | null) {
 
                     {isEditingEvent && (
                       <p className="mb-6 border-2 border-[#F7A600] bg-[#FFF9E8] px-4 py-3 text-sm font-semibold text-[#414296]">
-                        Voce esta editando um evento existente. Para manter o flyer atual, deixe o
+                        Você está editando um evento existente. Para manter o flyer atual, deixe o
                         campo de arquivo sem selecionar.
                       </p>
                     )}
 
                     <form onSubmit={handleSaveEvent} className="grid gap-5">
                       <label className="grid gap-2 text-sm font-semibold text-[#414296]">
-                        Qual e o nome do evento
+                        Qual é o nome do evento
                         <input
                           required
                           value={form.name}
@@ -1285,7 +1334,7 @@ function handleFlyerChange(file: File | null) {
                       </label>
 
                       <RichTextEditor
-                        label="Descricao do evento"
+                        label="Descrição do evento"
                         value={form.description}
                         onChange={(description) =>
                           setForm((current) => ({ ...current, description }))
@@ -1330,14 +1379,14 @@ function handleFlyerChange(file: File | null) {
                         </div>
                         {form.venueType === "outro" && (
                           <label className="grid gap-2 text-sm font-semibold text-[#414296]">
-                            Onde sera o evento
+                            Onde será o evento
                             <input
                               required
                               value={form.venue}
                               onChange={(event) =>
                                 setForm((current) => ({ ...current, venue: event.target.value }))
                               }
-                              placeholder="Ex.: Praca central, escola, auditorio..."
+                              placeholder="Ex.: Praça central, escola, auditorio..."
                               className="border-2 border-[#E2E2EA] bg-white px-4 py-3 font-normal text-[#24223A] outline-none transition focus:border-[#0B86D8]"
                             />
                           </label>
@@ -1382,7 +1431,7 @@ function handleFlyerChange(file: File | null) {
                         </label>
 
                         <label className="grid gap-2 text-sm font-semibold text-[#414296]">
-                          Periodo
+                          Período
                           <input
                             required
                             min="1"
@@ -2222,6 +2271,100 @@ function handleFlyerChange(file: File | null) {
                 </section>
               )}
 
+              {panel === "visitRequests" && (
+                <section className="grid gap-8">
+                  <section className="border-2 border-[#E2E2EA] bg-white p-6 md:p-8">
+                    <div className="flex items-center gap-3">
+                      <CalendarDays className="h-6 w-6 text-[#EF1B2D]" />
+                      <h2 className="font-sans text-3xl font-black text-[#414296]">
+                        Solicitações de visita
+                      </h2>
+                    </div>
+                    <p className="mt-4 max-w-3xl text-sm leading-relaxed text-[#5F5D70]">
+                      Acompanhe escolas, grupos e visitantes que preencheram o formulário público
+                      para planejar uma visita ao Museu Histórico Municipal.
+                    </p>
+                  </section>
+
+                  <section className="grid gap-4">
+                    {visitRequests.length === 0 && (
+                      <div className="border-2 border-[#E2E2EA] bg-white p-6 text-sm text-[#5F5D70]">
+                        Nenhuma solicitação de visita recebida até o momento.
+                      </div>
+                    )}
+
+                    {visitRequests.map((request) => (
+                      <article key={request.id} className="border-2 border-[#E2E2EA] bg-white p-6">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#EF1B2D]">
+                              {formatVisitRequestDate(request.date)} às {request.time || "--:--"}
+                            </p>
+                            <h3 className="mt-2 font-sans text-2xl font-black text-[#414296]">
+                              {request.groupName}
+                            </h3>
+                            <p className="mt-2 text-sm text-[#5F5D70]">
+                              Recebida em {formatVisitRequestCreatedAt(request.createdAt)}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteVisitRequest(request.id)}
+                            className="inline-flex h-10 w-10 items-center justify-center border-2 border-[#EF1B2D] text-[#EF1B2D] transition hover:bg-[#EF1B2D] hover:text-white"
+                            aria-label="Remover solicitação de visita"
+                            title="Remover solicitação de visita"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        <div className="mt-6 grid gap-4 md:grid-cols-3">
+                          <VisitRequestField label="Responsável" value={request.responsibleName} />
+                          <VisitRequestField label="Telefone" value={request.phone} />
+                          <VisitRequestField label="E-mail" value={request.email || "-"} />
+                          <VisitRequestField
+                            label="Visitantes"
+                            value={request.visitorsCount}
+                          />
+                          <VisitRequestField label="Faixa etária/série" value={request.ageGroup} />
+                          <VisitRequestField label="Status" value={request.status ?? "novo"} />
+                        </div>
+
+                        <div className="mt-6 grid gap-4 md:grid-cols-2">
+                          <div className="border-2 border-[#F0F0F6] bg-[#F8F8FB] p-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#414296]">
+                              Objetivo da visita
+                            </p>
+                            <p className="mt-3 text-sm leading-relaxed text-[#5F5D70]">
+                              {request.objective || "-"}
+                            </p>
+                          </div>
+                          <div className="border-2 border-[#F0F0F6] bg-[#F8F8FB] p-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#414296]">
+                              Observações
+                            </p>
+                            <p className="mt-3 text-sm leading-relaxed text-[#5F5D70]">
+                              {request.notes || "-"}
+                            </p>
+                          </div>
+                        </div>
+
+                        {request.requestText && (
+                          <details className="mt-6 border-2 border-[#E2E2EA] p-4">
+                            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.18em] text-[#414296]">
+                              Ver mensagem completa
+                            </summary>
+                            <pre className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-[#5F5D70]">
+                              {request.requestText}
+                            </pre>
+                          </details>
+                        )}
+                      </article>
+                    ))}
+                  </section>
+                </section>
+              )}
+
               {panel === "pages" && (
                 <section className="border-2 border-[#E2E2EA] bg-white p-6 md:p-8">
                   <div className="flex items-center gap-3">
@@ -2479,6 +2622,36 @@ function StatCard({
   );
 }
 
+function VisitRequestField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-2 border-[#F0F0F6] bg-[#F8F8FB] p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#414296]">{label}</p>
+      <p className="mt-2 break-words text-sm text-[#24223A]">{value || "-"}</p>
+    </div>
+  );
+}
+
+function formatVisitRequestDate(date: string) {
+  if (!date) return "Data não informada";
+
+  const [year, month, day] = date.split("-");
+  if (!year || !month || !day) return date;
+
+  return `${day}/${month}/${year}`;
+}
+
+function formatVisitRequestCreatedAt(createdAt: unknown) {
+  if (createdAt && typeof createdAt === "object" && "toDate" in createdAt) {
+    const maybeTimestamp = createdAt as { toDate?: () => Date };
+
+    if (typeof maybeTimestamp.toDate === "function") {
+      return maybeTimestamp.toDate().toLocaleString("pt-BR");
+    }
+  }
+
+  return "data não informada";
+}
+
 function AdminShortcut({
   icon: Icon,
   onClick,
@@ -2565,7 +2738,7 @@ function AdminCalendar({ events }: { events: CulturalEvent[] }) {
         <div className="flex items-center gap-3">
           <CalendarDays className="h-6 w-6 text-[#0B86D8]" />
           <div>
-            <h2 className="font-sans text-3xl font-black text-[#414296]">Calendario</h2>
+            <h2 className="font-sans text-3xl font-black text-[#414296]">Calendário</h2>
             <p className="mt-1 text-sm text-[#5F5D70]">
               {visibleMonthEvents} evento{visibleMonthEvents === 1 ? "" : "s"} neste mes
             </p>
@@ -2597,9 +2770,8 @@ function AdminCalendar({ events }: { events: CulturalEvent[] }) {
       {events.length === 0 ? (
         <p className="text-sm text-[#5F5D70]">Nenhum evento futuro cadastrado.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <div className="min-w-[48rem]">
-            <div className="grid grid-cols-7 border-l-2 border-t-2 border-[#E2E2EA]">
+        <div className="w-full overflow-hidden">
+            <div className="grid grid-cols-[repeat(7,minmax(0,1fr))] border-l-2 border-t-2 border-[#E2E2EA]">
               {calendarWeekDays.map((day) => (
                 <div
                   key={day}
@@ -2618,7 +2790,7 @@ function AdminCalendar({ events }: { events: CulturalEvent[] }) {
                   <article
                     key={dateKey}
                     className={[
-                      "min-h-32 border-b-2 border-r-2 border-[#E2E2EA] p-3 transition",
+                      "min-h-32 min-w-0 border-b-2 border-r-2 border-[#E2E2EA] p-2 transition sm:p-3",
                       isCurrentMonth ? "bg-white" : "bg-[#F8F8FB] text-[#8A8898]",
                       dayEvents.length > 0 ? "hover:bg-[#F8FBFF]" : "",
                     ].join(" ")}
@@ -2640,11 +2812,11 @@ function AdminCalendar({ events }: { events: CulturalEvent[] }) {
                       )}
                     </div>
 
-                    <div className="grid gap-1.5">
+                    <div className="grid min-w-0 gap-1.5">
                       {dayEvents.slice(0, 3).map((event) => (
                         <div
                           key={event.occurrenceId ?? event.id}
-                          className="border-l-4 border-[#00A859] bg-[#F8FBFF] px-2 py-1.5"
+                          className="min-w-0 overflow-hidden border-l-4 border-[#00A859] bg-[#F8FBFF] px-2 py-1.5"
                           title={`${event.name} - ${formatEventSchedule(event)}`}
                         >
                           <p className="truncate text-xs font-semibold text-[#24223A]">
@@ -2656,7 +2828,7 @@ function AdminCalendar({ events }: { events: CulturalEvent[] }) {
                         </div>
                       ))}
                       {dayEvents.length > 3 && (
-                        <p className="text-[0.68rem] font-semibold text-[#414296]">
+                        <p className="truncate text-[0.68rem] font-semibold text-[#414296]">
                           +{dayEvents.length - 3} evento{dayEvents.length - 3 === 1 ? "" : "s"}
                         </p>
                       )}
@@ -2665,7 +2837,6 @@ function AdminCalendar({ events }: { events: CulturalEvent[] }) {
                 );
               })}
             </div>
-          </div>
         </div>
       )}
 

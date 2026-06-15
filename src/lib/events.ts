@@ -110,6 +110,9 @@ function formatDateKey(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+  }
+  export function formatEventDate(event: Pick<CulturalEvent, "date">) {
+  return event.date.split("-").reverse().join("/");
 }
 
 function addCalendarDays(date: Date, days: number) {

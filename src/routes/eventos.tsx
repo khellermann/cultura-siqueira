@@ -171,7 +171,7 @@ function Eventos() {
       cards={[
         {
           icon: CalendarDays,
-          title: "Calendario",
+          title: "Calendário",
           text: "Datas, horarios e atividades confirmadas.",
           color: "#0B86D8",
         },
@@ -219,7 +219,7 @@ function Eventos() {
                 <div className="mb-6 flex items-center gap-3">
                   <CalendarDays className="h-6 w-6 text-[#0B86D8]" />
                   <h3 className="font-sans text-3xl font-black text-[#414296]">
-                    Calendario de eventos
+                    Calendário de eventos
                   </h3>
                 </div>
                 <div className="grid gap-4">
