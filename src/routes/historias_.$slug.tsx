@@ -4,7 +4,7 @@ import { PageHeader, SiteFooter } from "@/components/SiteHeader";
 import { getCulturalStory } from "@/lib/stories";
 import { absoluteUrl, breadcrumbJsonLd, organizationJsonLd, seoHead } from "@/lib/seo";
 
-export const Route = createFileRoute("/historias/$slug")({
+export const Route = createFileRoute("/historias_/$slug")({
   loader: ({ params }) => {
     const story = getCulturalStory(params.slug);
     if (!story) throw notFound();

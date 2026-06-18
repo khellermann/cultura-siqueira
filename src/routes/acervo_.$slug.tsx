@@ -10,7 +10,7 @@ import {
   seoHead,
 } from "@/lib/seo";
 
-export const Route = createFileRoute("/acervo/$slug")({
+export const Route = createFileRoute("/acervo_/$slug")({
   loader: ({ params }) => {
     const item = museumGalleryItems.find(
       (candidate) => candidate.id === getMuseumItemIdFromSlug(params.slug),

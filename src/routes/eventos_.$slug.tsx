@@ -20,7 +20,7 @@ import {
   seoHead,
 } from "@/lib/seo";
 
-export const Route = createFileRoute("/eventos/$slug")({
+export const Route = createFileRoute("/eventos_/$slug")({
   loader: async ({ params }) => {
     const eventId = getEventIdFromSlug(params.slug);
     const event = await getPublicEvent({ data: { eventId } });
