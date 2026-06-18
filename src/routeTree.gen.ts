@@ -13,6 +13,7 @@ import { Route as VisiteRouteImport } from './routes/visite'
 import { Route as SobreRouteImport } from './routes/sobre'
 import { Route as MuseuRouteImport } from './routes/museu'
 import { Route as InscricoesRouteImport } from './routes/inscricoes'
+import { Route as HistoriasRouteImport } from './routes/historias'
 import { Route as EventosRouteImport } from './routes/eventos'
 import { Route as EditaisRouteImport } from './routes/editais'
 import { Route as ContribuaRouteImport } from './routes/contribua'
@@ -21,6 +22,9 @@ import { Route as BibliotecaRouteImport } from './routes/biblioteca'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AcervoRouteImport } from './routes/acervo'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as HistoriasSlugRouteImport } from './routes/historias.$slug'
+import { Route as EventosSlugRouteImport } from './routes/eventos.$slug'
+import { Route as AcervoSlugRouteImport } from './routes/acervo.$slug'
 
 const VisiteRoute = VisiteRouteImport.update({
   id: '/visite',
@@ -40,6 +44,11 @@ const MuseuRoute = MuseuRouteImport.update({
 const InscricoesRoute = InscricoesRouteImport.update({
   id: '/inscricoes',
   path: '/inscricoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistoriasRoute = HistoriasRouteImport.update({
+  id: '/historias',
+  path: '/historias',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EventosRoute = EventosRouteImport.update({
@@ -82,49 +91,76 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HistoriasSlugRoute = HistoriasSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => HistoriasRoute,
+} as any)
+const EventosSlugRoute = EventosSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => EventosRoute,
+} as any)
+const AcervoSlugRoute = AcervoSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => AcervoRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/acervo': typeof AcervoRoute
+  '/acervo': typeof AcervoRouteWithChildren
   '/admin': typeof AdminRoute
   '/biblioteca': typeof BibliotecaRoute
   '/casa-da-cultura': typeof CasaDaCulturaRoute
   '/contribua': typeof ContribuaRoute
   '/editais': typeof EditaisRoute
-  '/eventos': typeof EventosRoute
+  '/eventos': typeof EventosRouteWithChildren
+  '/historias': typeof HistoriasRouteWithChildren
   '/inscricoes': typeof InscricoesRoute
   '/museu': typeof MuseuRoute
   '/sobre': typeof SobreRoute
   '/visite': typeof VisiteRoute
+  '/acervo/$slug': typeof AcervoSlugRoute
+  '/eventos/$slug': typeof EventosSlugRoute
+  '/historias/$slug': typeof HistoriasSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/acervo': typeof AcervoRoute
+  '/acervo': typeof AcervoRouteWithChildren
   '/admin': typeof AdminRoute
   '/biblioteca': typeof BibliotecaRoute
   '/casa-da-cultura': typeof CasaDaCulturaRoute
   '/contribua': typeof ContribuaRoute
   '/editais': typeof EditaisRoute
-  '/eventos': typeof EventosRoute
+  '/eventos': typeof EventosRouteWithChildren
+  '/historias': typeof HistoriasRouteWithChildren
   '/inscricoes': typeof InscricoesRoute
   '/museu': typeof MuseuRoute
   '/sobre': typeof SobreRoute
   '/visite': typeof VisiteRoute
+  '/acervo/$slug': typeof AcervoSlugRoute
+  '/eventos/$slug': typeof EventosSlugRoute
+  '/historias/$slug': typeof HistoriasSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/acervo': typeof AcervoRoute
+  '/acervo': typeof AcervoRouteWithChildren
   '/admin': typeof AdminRoute
   '/biblioteca': typeof BibliotecaRoute
   '/casa-da-cultura': typeof CasaDaCulturaRoute
   '/contribua': typeof ContribuaRoute
   '/editais': typeof EditaisRoute
-  '/eventos': typeof EventosRoute
+  '/eventos': typeof EventosRouteWithChildren
+  '/historias': typeof HistoriasRouteWithChildren
   '/inscricoes': typeof InscricoesRoute
   '/museu': typeof MuseuRoute
   '/sobre': typeof SobreRoute
   '/visite': typeof VisiteRoute
+  '/acervo/$slug': typeof AcervoSlugRoute
+  '/eventos/$slug': typeof EventosSlugRoute
+  '/historias/$slug': typeof HistoriasSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -137,10 +173,14 @@ export interface FileRouteTypes {
     | '/contribua'
     | '/editais'
     | '/eventos'
+    | '/historias'
     | '/inscricoes'
     | '/museu'
     | '/sobre'
     | '/visite'
+    | '/acervo/$slug'
+    | '/eventos/$slug'
+    | '/historias/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -151,10 +191,14 @@ export interface FileRouteTypes {
     | '/contribua'
     | '/editais'
     | '/eventos'
+    | '/historias'
     | '/inscricoes'
     | '/museu'
     | '/sobre'
     | '/visite'
+    | '/acervo/$slug'
+    | '/eventos/$slug'
+    | '/historias/$slug'
   id:
     | '__root__'
     | '/'
@@ -165,21 +209,26 @@ export interface FileRouteTypes {
     | '/contribua'
     | '/editais'
     | '/eventos'
+    | '/historias'
     | '/inscricoes'
     | '/museu'
     | '/sobre'
     | '/visite'
+    | '/acervo/$slug'
+    | '/eventos/$slug'
+    | '/historias/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AcervoRoute: typeof AcervoRoute
+  AcervoRoute: typeof AcervoRouteWithChildren
   AdminRoute: typeof AdminRoute
   BibliotecaRoute: typeof BibliotecaRoute
   CasaDaCulturaRoute: typeof CasaDaCulturaRoute
   ContribuaRoute: typeof ContribuaRoute
   EditaisRoute: typeof EditaisRoute
-  EventosRoute: typeof EventosRoute
+  EventosRoute: typeof EventosRouteWithChildren
+  HistoriasRoute: typeof HistoriasRouteWithChildren
   InscricoesRoute: typeof InscricoesRoute
   MuseuRoute: typeof MuseuRoute
   SobreRoute: typeof SobreRoute
@@ -214,6 +263,13 @@ declare module '@tanstack/react-router' {
       path: '/inscricoes'
       fullPath: '/inscricoes'
       preLoaderRoute: typeof InscricoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/historias': {
+      id: '/historias'
+      path: '/historias'
+      fullPath: '/historias'
+      preLoaderRoute: typeof HistoriasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/eventos': {
@@ -272,18 +328,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/historias/$slug': {
+      id: '/historias/$slug'
+      path: '/$slug'
+      fullPath: '/historias/$slug'
+      preLoaderRoute: typeof HistoriasSlugRouteImport
+      parentRoute: typeof HistoriasRoute
+    }
+    '/eventos/$slug': {
+      id: '/eventos/$slug'
+      path: '/$slug'
+      fullPath: '/eventos/$slug'
+      preLoaderRoute: typeof EventosSlugRouteImport
+      parentRoute: typeof EventosRoute
+    }
+    '/acervo/$slug': {
+      id: '/acervo/$slug'
+      path: '/$slug'
+      fullPath: '/acervo/$slug'
+      preLoaderRoute: typeof AcervoSlugRouteImport
+      parentRoute: typeof AcervoRoute
+    }
   }
 }
 
+interface AcervoRouteChildren {
+  AcervoSlugRoute: typeof AcervoSlugRoute
+}
+
+const AcervoRouteChildren: AcervoRouteChildren = {
+  AcervoSlugRoute: AcervoSlugRoute,
+}
+
+const AcervoRouteWithChildren =
+  AcervoRoute._addFileChildren(AcervoRouteChildren)
+
+interface EventosRouteChildren {
+  EventosSlugRoute: typeof EventosSlugRoute
+}
+
+const EventosRouteChildren: EventosRouteChildren = {
+  EventosSlugRoute: EventosSlugRoute,
+}
+
+const EventosRouteWithChildren =
+  EventosRoute._addFileChildren(EventosRouteChildren)
+
+interface HistoriasRouteChildren {
+  HistoriasSlugRoute: typeof HistoriasSlugRoute
+}
+
+const HistoriasRouteChildren: HistoriasRouteChildren = {
+  HistoriasSlugRoute: HistoriasSlugRoute,
+}
+
+const HistoriasRouteWithChildren = HistoriasRoute._addFileChildren(
+  HistoriasRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AcervoRoute: AcervoRoute,
+  AcervoRoute: AcervoRouteWithChildren,
   AdminRoute: AdminRoute,
   BibliotecaRoute: BibliotecaRoute,
   CasaDaCulturaRoute: CasaDaCulturaRoute,
   ContribuaRoute: ContribuaRoute,
   EditaisRoute: EditaisRoute,
-  EventosRoute: EventosRoute,
+  EventosRoute: EventosRouteWithChildren,
+  HistoriasRoute: HistoriasRouteWithChildren,
   InscricoesRoute: InscricoesRoute,
   MuseuRoute: MuseuRoute,
   SobreRoute: SobreRoute,

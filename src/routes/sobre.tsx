@@ -59,6 +59,7 @@ export const Route = createFileRoute("/sobre")({
         content: "Preservar, valorizar e divulgar a memória siqueirense.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/sobre" }],
   }),
   component: Sobre,
 });

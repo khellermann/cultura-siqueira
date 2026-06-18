@@ -13,6 +13,7 @@ export const Route = createFileRoute("/biblioteca")({
           "Biblioteca Municipal de Siqueira Campos: leitura, pesquisa, empréstimos e ações literárias.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/biblioteca" }],
   }),
   component: Biblioteca,
 });

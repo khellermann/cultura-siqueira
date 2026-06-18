@@ -58,6 +58,7 @@ export const Route = createFileRoute("/inscricoes")({
           "Inscricoes abertas da Secretaria Municipal de Cultura de Siqueira Campos: oficinas, cursos e eventos.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/inscricoes" }],
   }),
   component: Inscricoes,
 });

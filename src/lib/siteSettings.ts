@@ -22,6 +22,7 @@ export const publicPages = [
   { title: "Sobre", label: "Sobre", path: "/sobre", area: "Museu" },
   { title: "Visite", label: "Visite", path: "/visite", area: "Museu" },
   { title: "Contribua", label: "Contribua", path: "/contribua", area: "Museu" },
+  { title: "Historias", label: "Historias", path: "/historias", area: "Museu" },
 ] as const satisfies readonly PublicPage[];
 
 export const defaultMenuVisibility = publicPages.reduce<Record<string, boolean>>((current, page) => {
@@ -36,7 +37,7 @@ export const secretariaMenuItems = publicPages.filter((page) =>
 );
 
 export const museumMenuItems = publicPages.filter((page) =>
-  ["/", "/acervo", "/sobre", "/visite", "/contribua"].includes(page.path),
+  ["/", "/acervo", "/historias", "/sobre", "/visite", "/contribua"].includes(page.path),
 );
 
 export function mergeMenuVisibility(items?: Record<string, unknown>) {

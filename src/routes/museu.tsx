@@ -35,6 +35,7 @@ export const Route = createFileRoute("/museu")({
       },
       { property: "og:image", content: hero },
     ],
+    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/museu" }],
   }),
   component: Museu,
 });

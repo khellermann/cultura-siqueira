@@ -54,6 +54,7 @@ export const Route = createFileRoute("/visite")({
       { property: "og:title", content: "Planeje sua visita ao Museu" },
       { property: "og:description", content: "Terça a sábado - entrada gratuita." },
     ],
+    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/visite" }],
   }),
   component: Visite,
 });

@@ -22,6 +22,7 @@ export const Route = createFileRoute("/editais")({
         content: "Editais abertos da Secretaria Municipal de Cultura de Siqueira Campos.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/editais" }],
   }),
   component: Editais,
 });

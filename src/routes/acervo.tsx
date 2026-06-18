@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search, Sparkles, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -10,6 +10,7 @@ import {
   type MuseumGalleryFilter,
   type MuseumGalleryItem,
 } from "@/lib/museumCatalog";
+import { getMuseumItemSlug } from "@/lib/seo";
 
 export const Route = createFileRoute("/acervo")({
   head: () => ({
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/acervo")({
       { property: "og:title", content: "Acervo - Museu de Siqueira Campos" },
       { property: "og:description", content: "Peças que reconstituem a memória do município." },
     ],
+    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/acervo" }],
   }),
   component: Acervo,
 });
@@ -267,7 +269,17 @@ function AcervoDialog({
           </button>
         </div>
         <img src={item.image} alt={item.alt} className="max-h-[68vh] w-full bg-black object-contain" />
-        <p className="p-5 text-base leading-relaxed text-muted-foreground">{item.description}</p>
+        <div className="p-5">
+          <p className="text-base leading-relaxed text-muted-foreground">{item.description}</p>
+          <Link
+            to="/acervo/$slug"
+            params={{ slug: getMuseumItemSlug(item) }}
+            className="mt-5 inline-block border border-border px-5 py-3 text-xs uppercase tracking-[0.18em]"
+            onClick={onClose}
+          >
+            Abrir página desta peça
+          </Link>
+        </div>
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ export const Route = createFileRoute("/casa-da-cultura")({
           "Casa da Cultura de Siqueira Campos: oficinas, apresentações, encontros artísticos e ações comunitárias.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/casa-da-cultura" }],
   }),
   component: CasaDaCultura,
 });

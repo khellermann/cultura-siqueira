@@ -1,8 +1,65 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, BookMarked, Camera, HandHeart, Landmark, Search } from "lucide-react";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import {
+  ArrowRight,
+  BookMarked,
+  Camera,
+  Clipboard,
+  HandHeart,
+  Landmark,
+  Mail,
+  Phone,
+  Search,
+} from "lucide-react";
+import type { FormEvent, ReactNode } from "react";
+import { useMemo, useState } from "react";
 
 import { PageHeader, SiteFooter } from "@/components/SiteHeader";
+import {
+  contributionRequestsCollection,
+  type ContributionRequestInput,
+} from "@/lib/contributionRequests";
 import { cultureContact, formatPhones } from "@/lib/contact";
+import { firebaseDb } from "@/lib/firebase";
+
+type ContributionForm = {
+  address: string;
+  contactPreference: string;
+  contributionType: string;
+  description: string;
+  email: string;
+  name: string;
+  phone: string;
+  story: string;
+  title: string;
+};
+
+const initialContributionForm: ContributionForm = {
+  address: "",
+  contactPreference: "Telefone",
+  contributionType: "Fotografia",
+  description: "",
+  email: "",
+  name: "",
+  phone: "",
+  story: "",
+  title: "",
+};
+
+const contributionTypes = [
+  "Fotografia",
+  "Documento",
+  "Objeto antigo",
+  "Relato de memória",
+  "Identificação de pessoa ou lugar",
+  "Parceria educativa",
+] as const;
+
+const contactPreferences = ["Telefone", "WhatsApp", "E-mail"] as const;
+
+const inputClass =
+  "w-full border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-foreground";
+const labelClass = "text-[10px] uppercase tracking-[0.22em] text-muted-foreground";
 
 const contributionWays = [
   {
@@ -42,11 +99,88 @@ export const Route = createFileRoute("/contribua")({
         content: "Ajude a preservar a memória histórica e cultural do município.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/contribua" }],
   }),
   component: Contribua,
 });
 
 function Contribua() {
+  const [form, setForm] = useState<ContributionForm>(initialContributionForm);
+  const [messageText, setMessageText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+
+  const mailHref = useMemo(() => {
+    const subject = "Contribuição para o Museu Histórico Municipal";
+    const body = messageText || buildContributionMessage(form);
+    return `mailto:${cultureContact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }, [form, messageText]);
+
+  function updateField(field: keyof ContributionForm, value: string) {
+    setForm((current) => ({ ...current, [field]: value }));
+    setStatusMessage("");
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nextMessageText = buildContributionMessage(form);
+    setMessageText(nextMessageText);
+    setSaving(true);
+    setStatusMessage("");
+
+    if (!firebaseDb) {
+      setSaving(false);
+      setStatusMessage(
+        "Mensagem pronta, mas o Firebase não está configurado neste ambiente. Envie por e-mail ou telefone.",
+      );
+      return;
+    }
+
+    const payload: ContributionRequestInput = {
+      address: form.address.trim(),
+      contactPreference: form.contactPreference,
+      contributionType: form.contributionType,
+      description: form.description.trim(),
+      email: form.email.trim(),
+      messageText: nextMessageText,
+      name: form.name.trim(),
+      phone: form.phone.trim(),
+      story: form.story.trim(),
+      title: form.title.trim(),
+    };
+
+    try {
+      await addDoc(collection(firebaseDb, contributionRequestsCollection), {
+        ...payload,
+        createdAt: serverTimestamp(),
+        status: "novo",
+      });
+      setStatusMessage(
+        "Contribuição enviada para o administrador. A equipe da Cultura entrará em contato para conversar com você.",
+      );
+      setForm(initialContributionForm);
+    } catch (error) {
+      console.error(error);
+      setStatusMessage(
+        "Não foi possível enviar para o administrador. Envie por e-mail ou telefone e tente novamente depois.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCopy() {
+    const text = messageText || buildContributionMessage(form);
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatusMessage("Mensagem copiada.");
+    } catch {
+      setStatusMessage("Não foi possível copiar automaticamente. Selecione o texto e copie manualmente.");
+      setMessageText(text);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <PageHeader menu="museu" />
@@ -130,43 +264,172 @@ function Contribua() {
       </section>
 
       <section>
+        <div className="mx-auto grid max-w-7xl gap-10 px-6 py-20 md:grid-cols-12 md:px-10 md:py-28">
+          <div className="md:col-span-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-accent">Envie sua contribuição</p>
+            <h2 className="mt-6 font-display text-4xl leading-tight md:text-5xl">
+              Conte para o Museu o que você tem guardado.
+            </h2>
+            <p className="mt-6 text-sm leading-relaxed text-muted-foreground">
+              O formulário não substitui a avaliação da equipe, mas abre a conversa. Depois do envio,
+              a Cultura entra em contato para entender melhor o material, combinar orientação e
+              registrar a memória com cuidado.
+            </p>
+            <div className="mt-8 border border-border p-5 text-sm leading-relaxed text-muted-foreground">
+              <p className="font-semibold text-foreground">Contato direto</p>
+              <p className="mt-3">{formatPhones()}</p>
+              <p>Ramal 627 - Museu</p>
+              <p className="break-words">{cultureContact.email}</p>
+            </div>
+          </div>
+
+          <div className="md:col-span-8">
+            <form onSubmit={handleSubmit} className="border border-border bg-card p-6 md:p-8">
+              <div className="grid gap-5 md:grid-cols-2">
+                <Field label="Seu nome">
+                  <input
+                    className={inputClass}
+                    required
+                    value={form.name}
+                    onChange={(event) => updateField("name", event.target.value)}
+                  />
+                </Field>
+                <Field label="Telefone">
+                  <input
+                    className={inputClass}
+                    required
+                    value={form.phone}
+                    onChange={(event) => updateField("phone", event.target.value)}
+                  />
+                </Field>
+                <Field label="E-mail opcional">
+                  <input
+                    type="email"
+                    className={inputClass}
+                    value={form.email}
+                    onChange={(event) => updateField("email", event.target.value)}
+                  />
+                </Field>
+                <Field label="Como prefere o contato">
+                  <select
+                    className={inputClass}
+                    value={form.contactPreference}
+                    onChange={(event) => updateField("contactPreference", event.target.value)}
+                  >
+                    {contactPreferences.map((preference) => (
+                      <option key={preference} value={preference}>
+                        {preference}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Tipo de contribuição">
+                  <select
+                    className={inputClass}
+                    value={form.contributionType}
+                    onChange={(event) => updateField("contributionType", event.target.value)}
+                  >
+                    {contributionTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Título ou assunto">
+                  <input
+                    className={inputClass}
+                    required
+                    placeholder="Ex.: Foto da antiga estação, objeto de família..."
+                    value={form.title}
+                    onChange={(event) => updateField("title", event.target.value)}
+                  />
+                </Field>
+                <Field label="Endereço/bairro opcional" className="md:col-span-2">
+                  <input
+                    className={inputClass}
+                    value={form.address}
+                    onChange={(event) => updateField("address", event.target.value)}
+                  />
+                </Field>
+                <Field label="Descreva o material ou a lembrança" className="md:col-span-2">
+                  <textarea
+                    className={`${inputClass} min-h-28 resize-y`}
+                    required
+                    placeholder="Conte o que é, de quando pode ser, quem aparece, onde estava guardado ou por que pode ser importante."
+                    value={form.description}
+                    onChange={(event) => updateField("description", event.target.value)}
+                  />
+                </Field>
+                <Field label="História por trás da contribuição" className="md:col-span-2">
+                  <textarea
+                    className={`${inputClass} min-h-28 resize-y`}
+                    placeholder="Se souber, conte a história, nomes, lugares, datas aproximadas ou lembranças relacionadas."
+                    value={form.story}
+                    onChange={(event) => updateField("story", event.target.value)}
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-8 flex flex-wrap gap-4">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 bg-foreground px-6 py-4 text-xs uppercase tracking-[0.2em] text-background transition hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {saving ? "Enviando..." : "Enviar contribuição"}
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+                <a
+                  href={mailHref}
+                  className="inline-flex items-center gap-2 border border-border px-6 py-4 text-xs uppercase tracking-[0.2em] transition hover:border-foreground"
+                >
+                  <Mail className="h-4 w-4" />
+                  Enviar por e-mail
+                </a>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="inline-flex items-center gap-2 border border-border px-6 py-4 text-xs uppercase tracking-[0.2em] transition hover:border-foreground"
+                >
+                  <Clipboard className="h-4 w-4" />
+                  Copiar mensagem
+                </button>
+                <a
+                  href="tel:+554335711122"
+                  className="inline-flex items-center gap-2 border border-border px-6 py-4 text-xs uppercase tracking-[0.2em] transition hover:border-foreground"
+                >
+                  <Phone className="h-4 w-4" />
+                  Ligar para a Cultura
+                </a>
+              </div>
+            </form>
+
+            {(statusMessage || messageText) && (
+              <div className="mt-8 border border-border bg-background p-6">
+                {statusMessage && (
+                  <p className="text-sm font-semibold text-foreground">{statusMessage}</p>
+                )}
+                {messageText && (
+                  <pre className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                    {messageText}
+                  </pre>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-border">
         <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-28">
           <div className="border border-border bg-background p-6 md:p-10">
-            <p className="text-xs uppercase tracking-[0.3em] text-accent">Contato</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-accent">Também dá para visitar</p>
             <p className="mt-6 max-w-3xl font-display text-3xl leading-tight md:text-4xl">
-              Para propor uma doação, compartilhar uma história ou iniciar uma parceria, entre em
-              contato com a Secretaria Municipal de Cultura.
+              Quer aproximar sua escola, grupo ou pesquisa do Museu? Planeje uma visita mediada e
+              transforme o acervo em ponto de encontro.
             </p>
-            <div className="mt-10 grid gap-6 text-sm md:grid-cols-3">
-              <div className="border-t border-border pt-4">
-                <p className="uppercase tracking-[0.2em] text-muted-foreground">Telefone</p>
-                <p className="mt-3 leading-relaxed">{formatPhones()}</p>
-              </div>
-              <div className="border-t border-border pt-4">
-                <p className="uppercase tracking-[0.2em] text-muted-foreground">Ramais</p>
-                <div className="mt-3 space-y-1">
-                  {cultureContact.extensions.map((extension) => (
-                    <p key={extension.number}>
-                      {extension.number} - {extension.label}
-                    </p>
-                  ))}
-                </div>
-              </div>
-              <div className="border-t border-border pt-4">
-                <p className="uppercase tracking-[0.2em] text-muted-foreground">E-mail</p>
-                <p className="mt-3 break-words">{cultureContact.email}</p>
-              </div>
-            </div>
-            <div className="mt-10 flex flex-wrap gap-4">
-              <a
-                href={`mailto:${cultureContact.email}?subject=${encodeURIComponent(
-                  "Contribuição para o Museu Histórico Municipal",
-                )}`}
-                className="inline-flex items-center gap-2 bg-foreground px-6 py-4 text-xs uppercase tracking-[0.2em] text-background transition hover:bg-accent hover:text-accent-foreground"
-              >
-                Escrever para a Cultura
-                <ArrowRight className="h-4 w-4" />
-              </a>
+            <div className="mt-10">
               <Link
                 to="/visite"
                 className="inline-flex items-center gap-2 border border-border px-6 py-4 text-xs uppercase tracking-[0.2em] transition hover:border-foreground"
@@ -181,4 +444,45 @@ function Contribua() {
       <SiteFooter />
     </div>
   );
+}
+
+function Field({
+  label,
+  className = "",
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className={`grid gap-2 ${className}`}>
+      <span className={labelClass}>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function buildContributionMessage(form: ContributionForm) {
+  return [
+    "Contribuição para o Museu Histórico Municipal",
+    "",
+    `Nome: ${form.name || "Não informado"}`,
+    `Telefone: ${form.phone || "Não informado"}`,
+    `E-mail: ${form.email || "Não informado"}`,
+    `Preferência de contato: ${form.contactPreference || "Não informada"}`,
+    `Endereço/bairro: ${form.address || "Não informado"}`,
+    "",
+    `Tipo de contribuição: ${form.contributionType || "Não informado"}`,
+    `Título/assunto: ${form.title || "Não informado"}`,
+    "",
+    "Descrição:",
+    form.description || "Não informada",
+    "",
+    "História relacionada:",
+    form.story || "Não informada",
+    "",
+    `Contato da Secretaria de Cultura: ${formatPhones()}`,
+    "Ramal do Museu: 627",
+  ].join("\n");
 }

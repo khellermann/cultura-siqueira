@@ -29,6 +29,7 @@ import {
   Download,
   ExternalLink,
   FileText,
+  HandHeart,
   Italic,
   LayoutDashboard,
   Link2,
@@ -51,6 +52,10 @@ import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import culturaLogo from "@/assets/cultura-logo-stacked.png";
 import { uploadPublicDocument } from "@/lib/api/document.functions";
 import { uploadEventFlyer } from "@/lib/api/flyer.functions";
+import {
+  contributionRequestsCollection,
+  type ContributionRequest,
+} from "@/lib/contributionRequests";
 import { firebaseAuth, firebaseDb, isFirebaseConfigured } from "@/lib/firebase";
 import { richTextToPlainText, sanitizeRichText } from "@/lib/richText";
 import {
@@ -109,6 +114,7 @@ type AdminPanel =
   | "edicts"
   | "submissions"
   | "visitRequests"
+  | "contributions"
   | "pages"
   | "admins";
 
@@ -203,6 +209,7 @@ const adminPanels = [
   { id: "edicts", label: "Editais", icon: FileText },
   { id: "submissions", label: "Inscricoes recebidas", icon: Download },
   { id: "visitRequests", label: "Visitas", icon: CalendarDays },
+  { id: "contributions", label: "Contribuicoes", icon: HandHeart },
   { id: "pages", label: "Paginas", icon: FileText },
 ] satisfies Array<{ id: AdminPanel; label: string; icon: LucideIcon }>;
 
@@ -302,6 +309,7 @@ export const Route = createFileRoute("/admin")({
         name: "description",
         content: "Area administrativa da Secretaria Municipal de Cultura de Siqueira Campos.",
       },
+      { name: "robots", content: "noindex, nofollow, noarchive" },
     ],
   }),
   component: Admin,
@@ -344,6 +352,7 @@ function Admin() {
   const [registrationEntries, setRegistrationEntries] = useState<RegistrationEntry[]>([]);
   const [selectedSubmissionOpportunityId, setSelectedSubmissionOpportunityId] = useState("");
   const [visitRequests, setVisitRequests] = useState<VisitRequest[]>([]);
+  const [contributionRequests, setContributionRequests] = useState<ContributionRequest[]>([]);
   const [saving, setSaving] = useState(false);
   const [savingMenu, setSavingMenu] = useState(false);
   const [tokenEmail, setTokenEmail] = useState("");
@@ -355,29 +364,34 @@ function Admin() {
   async function loadAdminData() {
     if (!firebaseDb) return;
 
-    const [
-      adminsSnapshot,
-      eventsSnapshot,
-      opportunitiesSnapshot,
-      registrationsSnapshot,
-      visitRequestsSnapshot,
-    ] =
-      await Promise.all([
-        getDocs(query(collection(firebaseDb, adminUsersCollection), orderBy("email", "asc"))),
-        getDocs(query(collection(firebaseDb, eventsCollection), orderBy("date", "desc"))),
-        getDocs(
-          query(
-            collection(firebaseDb, registrationOpportunitiesCollection),
-            orderBy("title", "asc"),
+    const failedLoads: string[] = [];
+    let adminsSnapshot;
+    let eventsSnapshot;
+    let opportunitiesSnapshot;
+    let registrationsSnapshot;
+
+    try {
+      [adminsSnapshot, eventsSnapshot, opportunitiesSnapshot, registrationsSnapshot] =
+        await Promise.all([
+          getDocs(query(collection(firebaseDb, adminUsersCollection), orderBy("email", "asc"))),
+          getDocs(query(collection(firebaseDb, eventsCollection), orderBy("date", "desc"))),
+          getDocs(
+            query(
+              collection(firebaseDb, registrationOpportunitiesCollection),
+              orderBy("title", "asc"),
+            ),
           ),
-        ),
-        getDocs(
-          query(collection(firebaseDb, registrationsCollection), orderBy("createdAt", "desc")),
-        ),
-        getDocs(
-          query(collection(firebaseDb, visitRequestsCollection), orderBy("createdAt", "desc")),
-        ),
-      ]);
+          getDocs(
+            query(collection(firebaseDb, registrationsCollection), orderBy("createdAt", "desc")),
+          ),
+        ]);
+    } catch (error) {
+      console.error(error);
+      setMessage(
+        "Não foi possível carregar os dados administrativos. Confira as regras do Firebase para administradores.",
+      );
+      return;
+    }
 
     setAdmins(
       adminsSnapshot.docs.map((adminDoc) => ({
@@ -407,12 +421,43 @@ function Admin() {
       })),
     );
 
-    setVisitRequests(
-      visitRequestsSnapshot.docs.map((visitRequestDoc) => ({
-        id: visitRequestDoc.id,
-        ...(visitRequestDoc.data() as Omit<VisitRequest, "id">),
-      })),
-    );
+    try {
+      const visitRequestsSnapshot = await getDocs(
+        query(collection(firebaseDb, visitRequestsCollection), orderBy("createdAt", "desc")),
+      );
+      setVisitRequests(
+        visitRequestsSnapshot.docs.map((visitRequestDoc) => ({
+          id: visitRequestDoc.id,
+          ...(visitRequestDoc.data() as Omit<VisitRequest, "id">),
+        })),
+      );
+    } catch (error) {
+      console.error(error);
+      setVisitRequests([]);
+      failedLoads.push("solicitações de visita");
+    }
+
+    try {
+      const contributionRequestsSnapshot = await getDocs(
+        query(collection(firebaseDb, contributionRequestsCollection), orderBy("createdAt", "desc")),
+      );
+      setContributionRequests(
+        contributionRequestsSnapshot.docs.map((contributionRequestDoc) => ({
+          id: contributionRequestDoc.id,
+          ...(contributionRequestDoc.data() as Omit<ContributionRequest, "id">),
+        })),
+      );
+    } catch (error) {
+      console.error(error);
+      setContributionRequests([]);
+      failedLoads.push("contribuições");
+    }
+
+    if (failedLoads.length > 0) {
+      setMessage(
+        `Não foi possível carregar ${failedLoads.join(" e ")}. Confira se as regras do Firebase permitem leitura para administradores nas coleções ${visitRequestsCollection} e ${contributionRequestsCollection}.`,
+      );
+    }
 
     try {
       const navigationSnapshot = await getDoc(
@@ -1010,6 +1055,13 @@ function handleFlyerChange(file: File | null) {
     await loadAdminData();
   }
 
+  async function handleDeleteContributionRequest(requestId: string) {
+    if (!firebaseDb) return;
+    await deleteDoc(doc(firebaseDb, contributionRequestsCollection, requestId));
+    setMessage("Contribuição removida.");
+    await loadAdminData();
+  }
+
   function getEntryValue(entry: RegistrationEntry, fieldKey: string) {
     const formValue = entry.formData?.[fieldKey];
     if (formValue) return formValue;
@@ -1232,7 +1284,7 @@ function handleFlyerChange(file: File | null) {
 
               {panel === "overview" && (
                 <section className="grid gap-8">
-                  <div className="grid gap-4 md:grid-cols-4">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                     <StatCard
                       icon={CalendarDays}
                       label="Eventos cadastrados"
@@ -1257,13 +1309,19 @@ function handleFlyerChange(file: File | null) {
                       value={visitRequests.length}
                       tone="#EF1B2D"
                     />
+                    <StatCard
+                      icon={HandHeart}
+                      label="Contribuições"
+                      value={contributionRequests.length}
+                      tone="#00A859"
+                    />
                   </div>
 
                   <section className="border-2 border-[#E2E2EA] bg-white p-6 md:p-8">
                     <h2 className="font-sans text-3xl font-black text-[#414296]">
                       Atalhos de gestão
                     </h2>
-                    <div className="mt-6 grid gap-4 md:grid-cols-4">
+                    <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                       <AdminShortcut
                         icon={CalendarDays}
                         title="Cadastrar evento"
@@ -1281,6 +1339,12 @@ function handleFlyerChange(file: File | null) {
                         title="Solicitações de visita"
                         text="Veja escolas e grupos que pediram agendamento pelo site."
                         onClick={() => setPanel("visitRequests")}
+                      />
+                      <AdminShortcut
+                        icon={HandHeart}
+                        title="Contribuições"
+                        text="Leia relatos, doações e pistas enviadas pela comunidade."
+                        onClick={() => setPanel("contributions")}
                       />
                       <AdminShortcut
                         icon={FileText}
@@ -2365,6 +2429,100 @@ function handleFlyerChange(file: File | null) {
                 </section>
               )}
 
+              {panel === "contributions" && (
+                <section className="grid gap-8">
+                  <section className="border-2 border-[#E2E2EA] bg-white p-6 md:p-8">
+                    <div className="flex items-center gap-3">
+                      <HandHeart className="h-6 w-6 text-[#00A859]" />
+                      <h2 className="font-sans text-3xl font-black text-[#414296]">
+                        Contribuições da comunidade
+                      </h2>
+                    </div>
+                    <p className="mt-4 max-w-3xl text-sm leading-relaxed text-[#5F5D70]">
+                      Veja doações, relatos, identificações e parcerias enviadas pela página pública
+                      Contribua. Cada mensagem abre uma conversa para preservar a memória da cidade.
+                    </p>
+                  </section>
+
+                  <section className="grid gap-4">
+                    {contributionRequests.length === 0 && (
+                      <div className="border-2 border-[#E2E2EA] bg-white p-6 text-sm text-[#5F5D70]">
+                        Nenhuma contribuição recebida até o momento.
+                      </div>
+                    )}
+
+                    {contributionRequests.map((request) => (
+                      <article key={request.id} className="border-2 border-[#E2E2EA] bg-white p-6">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#00A859]">
+                              {request.contributionType || "Contribuição"}
+                            </p>
+                            <h3 className="mt-2 font-sans text-2xl font-black text-[#414296]">
+                              {request.title || "Sem título"}
+                            </h3>
+                            <p className="mt-2 text-sm text-[#5F5D70]">
+                              Recebida em {formatAdminTimestamp(request.createdAt)}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteContributionRequest(request.id)}
+                            className="inline-flex h-10 w-10 items-center justify-center border-2 border-[#EF1B2D] text-[#EF1B2D] transition hover:bg-[#EF1B2D] hover:text-white"
+                            aria-label="Remover contribuição"
+                            title="Remover contribuição"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        <div className="mt-6 grid gap-4 md:grid-cols-3">
+                          <AdminInfoField label="Nome" value={request.name} />
+                          <AdminInfoField label="Telefone" value={request.phone} />
+                          <AdminInfoField label="E-mail" value={request.email || "-"} />
+                          <AdminInfoField
+                            label="Preferência de contato"
+                            value={request.contactPreference}
+                          />
+                          <AdminInfoField label="Endereço/bairro" value={request.address || "-"} />
+                          <AdminInfoField label="Status" value={request.status ?? "novo"} />
+                        </div>
+
+                        <div className="mt-6 grid gap-4 md:grid-cols-2">
+                          <div className="border-2 border-[#F0F0F6] bg-[#F8F8FB] p-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#414296]">
+                              Descrição
+                            </p>
+                            <p className="mt-3 text-sm leading-relaxed text-[#5F5D70]">
+                              {request.description || "-"}
+                            </p>
+                          </div>
+                          <div className="border-2 border-[#F0F0F6] bg-[#F8F8FB] p-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#414296]">
+                              História relacionada
+                            </p>
+                            <p className="mt-3 text-sm leading-relaxed text-[#5F5D70]">
+                              {request.story || "-"}
+                            </p>
+                          </div>
+                        </div>
+
+                        {request.messageText && (
+                          <details className="mt-6 border-2 border-[#E2E2EA] p-4">
+                            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.18em] text-[#414296]">
+                              Ver mensagem completa
+                            </summary>
+                            <pre className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-[#5F5D70]">
+                              {request.messageText}
+                            </pre>
+                          </details>
+                        )}
+                      </article>
+                    ))}
+                  </section>
+                </section>
+              )}
+
               {panel === "pages" && (
                 <section className="border-2 border-[#E2E2EA] bg-white p-6 md:p-8">
                   <div className="flex items-center gap-3">
@@ -2623,6 +2781,10 @@ function StatCard({
 }
 
 function VisitRequestField({ label, value }: { label: string; value: string }) {
+  return <AdminInfoField label={label} value={value} />;
+}
+
+function AdminInfoField({ label, value }: { label: string; value: string }) {
   return (
     <div className="border-2 border-[#F0F0F6] bg-[#F8F8FB] p-4">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#414296]">{label}</p>
@@ -2641,6 +2803,10 @@ function formatVisitRequestDate(date: string) {
 }
 
 function formatVisitRequestCreatedAt(createdAt: unknown) {
+  return formatAdminTimestamp(createdAt);
+}
+
+function formatAdminTimestamp(createdAt: unknown) {
   if (createdAt && typeof createdAt === "object" && "toDate" in createdAt) {
     const maybeTimestamp = createdAt as { toDate?: () => Date };
 

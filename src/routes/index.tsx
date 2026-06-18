@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { ArrowRight, CalendarDays, Landmark, LibraryBig, Music2, PenLine, Theater } from "lucide-react";
 import type { CSSProperties } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { SiteFooter, SiteHeader } from "@/components/SiteHeader";
 import {
@@ -15,16 +14,16 @@ import {
 import culturaLogo from "@/assets/cultura-logo-horizontal.png";
 import culturaLogoStacked from "@/assets/cultura-logo-stacked.png";
 import {
-  eventsCollection,
   expandEventOccurrences,
   formatEventRecurrence,
   formatEventSchedule,
   formatEventVenue,
   type CulturalEvent,
 } from "@/lib/events";
-import { firebaseDb } from "@/lib/firebase";
+import { getPublicEvents } from "@/lib/api/publicEvents.functions";
 import { museumHomeHighlights } from "@/lib/museumCatalog";
 import { richTextToPlainText } from "@/lib/richText";
+import { getEventSlug } from "@/lib/seo";
 
 const areas = [
   {
@@ -84,6 +83,7 @@ function uniqueEvents(events: CulturalEvent[]) {
 }
 
 export const Route = createFileRoute("/")({
+  loader: () => getPublicEvents(),
   head: () => ({
     meta: [
       { title: "Secretaria Municipal de Cultura de Siqueira Campos" },
@@ -99,38 +99,15 @@ export const Route = createFileRoute("/")({
       },
       { property: "og:image", content: culturaLogo },
     ],
+    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/" }],
   }),
   component: Index,
 });
 
 function Index() {
-  const [events, setEvents] = useState<CulturalEvent[]>([]);
-  const [eventsError, setEventsError] = useState("");
-  const [eventsLoading, setEventsLoading] = useState(Boolean(firebaseDb));
-
-  useEffect(() => {
-    async function loadEvents() {
-      if (!firebaseDb) {
-        setEventsLoading(false);
-        return;
-      }
-
-      const snapshot = await getDocs(query(collection(firebaseDb, eventsCollection), orderBy("date", "asc")));
-      setEvents(
-        snapshot.docs.map((eventDoc) => ({
-          id: eventDoc.id,
-          ...(eventDoc.data() as Omit<CulturalEvent, "id">),
-        })),
-      );
-      setEventsLoading(false);
-    }
-
-    loadEvents().catch((error) => {
-      console.error(error);
-      setEventsError("Nao foi possivel carregar os eventos em destaque.");
-      setEventsLoading(false);
-    });
-  }, []);
+  const events = Route.useLoaderData();
+  const eventsError = "";
+  const eventsLoading = false;
 
   const featuredEvents = useMemo(() => {
     const today = getTodayDate();
@@ -337,7 +314,7 @@ function Index() {
                 {featuredEvents.map((event) => (
                   <CarouselItem key={event.occurrenceId ?? event.id} className="md:basis-1/2 lg:basis-1/3">
                     <a
-                      href={`/eventos?evento=${event.id}`}
+                      href={`/eventos/${getEventSlug(event)}`}
                       className="group block min-h-[28rem] overflow-hidden border-2 border-white/20 bg-white text-[#24223A] transition hover:-translate-y-1 hover:border-[#F7A600]"
                     >
                       {event.flyerUrl ? (

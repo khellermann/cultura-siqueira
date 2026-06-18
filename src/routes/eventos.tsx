@@ -1,5 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import {
   ArrowLeft,
   CalendarDays,
@@ -10,7 +9,7 @@ import {
   X,
   UserRound,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { SecretariaPage } from "@/components/SecretariaPage";
 import { SecretariaHeader, SiteFooter } from "@/components/SiteHeader";
@@ -21,9 +20,8 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { firebaseDb, isFirebaseConfigured } from "@/lib/firebase";
+import { getPublicEvents } from "@/lib/api/publicEvents.functions";
 import {
-  eventsCollection,
   expandEventOccurrences,
   formatEventRecurrence,
   formatEventSchedule,
@@ -31,6 +29,7 @@ import {
   type CulturalEvent,
 } from "@/lib/events";
 import { richTextToPlainText, sanitizeRichText } from "@/lib/richText";
+import { getEventSlug } from "@/lib/seo";
 
 function addDays(date: Date, days: number) {
   const nextDate = new Date(date);
@@ -59,6 +58,24 @@ function getPublicEventOccurrence(event: CulturalEvent, today: string, rangeEnd:
 }
 
 export const Route = createFileRoute("/eventos")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    evento: typeof search.evento === "string" ? search.evento : undefined,
+  }),
+  loaderDeps: ({ search }) => ({ evento: search.evento }),
+  loader: async ({ deps }) => {
+    const events = await getPublicEvents();
+    if (deps.evento) {
+      const selectedEvent = events.find((event) => event.id === deps.evento);
+      if (selectedEvent) {
+        throw redirect({
+          to: "/eventos/$slug",
+          params: { slug: getEventSlug(selectedEvent) },
+          replace: true,
+        });
+      }
+    }
+    return events;
+  },
   head: () => ({
     meta: [
       { title: "Eventos - Secretaria Municipal de Cultura" },
@@ -68,42 +85,17 @@ export const Route = createFileRoute("/eventos")({
           "Agenda cultural de Siqueira Campos: eventos, apresentacoes, mostras, oficinas e acoes publicas.",
       },
     ],
+    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/eventos" }],
   }),
   component: Eventos,
 });
 
 function Eventos() {
-  const [events, setEvents] = useState<CulturalEvent[]>([]);
-  const [error, setError] = useState("");
+  const events = Route.useLoaderData();
+  const error = "";
+  const loading = false;
   const [lightboxImage, setLightboxImage] = useState<{ alt: string; src: string } | null>(null);
-  const [loading, setLoading] = useState(isFirebaseConfigured);
   const [selectedEventId, setSelectedEventId] = useState("");
-
-  useEffect(() => {
-    setSelectedEventId(new URLSearchParams(window.location.search).get("evento") ?? "");
-
-    async function loadEvents() {
-      if (!firebaseDb) {
-        setLoading(false);
-        return;
-      }
-
-      const snapshot = await getDocs(query(collection(firebaseDb, eventsCollection), orderBy("date", "asc")));
-      setEvents(
-        snapshot.docs.map((eventDoc) => ({
-          id: eventDoc.id,
-          ...(eventDoc.data() as Omit<CulturalEvent, "id">),
-        })),
-      );
-      setLoading(false);
-    }
-
-    loadEvents().catch((error) => {
-      console.error(error);
-      setError("Nao foi possivel carregar os eventos. Confira as regras de leitura do Firestore.");
-      setLoading(false);
-    });
-  }, []);
 
   const visibleEvents = useMemo(() => {
     const today = getTodayDate();
@@ -232,7 +224,7 @@ function Eventos() {
                         {dayEvents.map((event) => (
                           <a
                             key={event.occurrenceId ?? event.id}
-                            href={`/eventos?evento=${event.id}`}
+                            href={`/eventos/${getEventSlug(event)}`}
                             className="flex flex-col gap-1 border-l-4 border-[#00A859] pl-4 text-sm transition hover:text-[#414296]"
                           >
                             <span className="font-semibold text-[#24223A]">{event.name}</span>
@@ -297,7 +289,7 @@ function Eventos() {
                         />
                       )}
                       <a
-                        href={`/eventos?evento=${event.id}`}
+                        href={`/eventos/${getEventSlug(event)}`}
                         className="mt-5 inline-flex border-2 border-[#414296] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#414296] transition hover:bg-[#414296] hover:text-white"
                       >
                         Ver evento
@@ -389,7 +381,7 @@ function EventHighlightsCarousel({
           {events.map((event) => (
             <CarouselItem key={event.occurrenceId ?? event.id} className={full ? "md:basis-1/2 lg:basis-1/3" : ""}>
               <a
-                href={`/eventos?evento=${event.id}`}
+                href={`/eventos/${getEventSlug(event)}`}
                 className={[
                   "group block overflow-hidden bg-white text-[#24223A] transition hover:-translate-y-1",
                   full ? "min-h-[29rem]" : "",
@@ -585,7 +577,7 @@ function EventDetailPage({
                   {upcomingEvents.map((upcomingEvent) => (
                     <a
                       key={upcomingEvent.occurrenceId ?? upcomingEvent.id}
-                      href={`/eventos?evento=${upcomingEvent.id}`}
+                      href={`/eventos/${getEventSlug(upcomingEvent)}`}
                       className="border-2 border-[#E7E7EF] p-5 transition hover:-translate-y-1 hover:border-[#0B86D8] hover:shadow-[0_18px_40px_rgba(65,66,150,0.12)]"
                     >
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#0B86D8]">
