@@ -8,10 +8,14 @@ Defina no ambiente de hospedagem:
 VITE_PUBLIC_SITE_URL=https://cultura.siqueiracampos.pr.gov.br
 VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX
 VITE_GOOGLE_SITE_VERIFICATION=token-fornecido-pelo-search-console
+FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 ```
 
 Somente o host configurado em `VITE_PUBLIC_SITE_URL` libera rastreamento. Outros domínios recebem
 `X-Robots-Tag: noindex, nofollow`, e o `robots.txt` bloqueia todos os robôs.
+
+`FIREBASE_SERVICE_ACCOUNT_JSON` deve ser cadastrada como segredo protegido da hospedagem. Nunca
+coloque essa credencial em `.env.local`, em uma variável `VITE_*`, no Git ou em mensagens.
 
 ## Publicação e Google
 

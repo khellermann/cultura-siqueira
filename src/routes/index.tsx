@@ -1,7 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, CalendarDays, Landmark, LibraryBig, Music2, PenLine, Theater } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  Landmark,
+  LibraryBig,
+  Music2,
+  PenLine,
+  Theater,
+} from "lucide-react";
 import type { CSSProperties } from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { SiteFooter, SiteHeader } from "@/components/SiteHeader";
 import {
@@ -22,6 +30,7 @@ import {
 } from "@/lib/events";
 import { getPublicEvents } from "@/lib/api/publicEvents.functions";
 import { museumHomeHighlights } from "@/lib/museumCatalog";
+import { readPublicEventsFromBrowser } from "@/lib/publicEvents.browser";
 import { richTextToPlainText } from "@/lib/richText";
 import { getEventSlug } from "@/lib/seo";
 
@@ -105,17 +114,30 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const events = Route.useLoaderData();
-  const eventsError = "";
-  const eventsLoading = false;
+  const serverEvents = Route.useLoaderData();
+  const [events, setEvents] = useState(serverEvents);
+  const [eventsError, setEventsError] = useState("");
+  const [eventsLoading, setEventsLoading] = useState(serverEvents.length === 0);
+
+  useEffect(() => {
+    if (serverEvents.length > 0) return;
+    readPublicEventsFromBrowser()
+      .then(setEvents)
+      .catch((error) => {
+        console.error(error);
+        setEventsError("Não foi possível carregar os eventos em destaque.");
+      })
+      .finally(() => setEventsLoading(false));
+  }, [serverEvents]);
 
   const featuredEvents = useMemo(() => {
     const today = getTodayDate();
     const weekLimit = addDays(new Date(), 7).toISOString().slice(0, 10);
     const rangeEnd = addDays(new Date(), 180).toISOString().slice(0, 10);
     const currentMonth = today.slice(0, 7);
-    const futureEvents = expandEventOccurrences(events, today, rangeEnd)
-      .sort((a, b) => a.date.localeCompare(b.date));
+    const futureEvents = expandEventOccurrences(events, today, rangeEnd).sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
     const weekEvents = futureEvents.filter((event) => event.date <= weekLimit);
     const monthEvents = futureEvents.filter((event) => event.date.startsWith(currentMonth));
 
@@ -194,9 +216,7 @@ function Index() {
       <section className="bg-white">
         <div className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-28">
           <div className="mb-12">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#00A859]">
-              Areas
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#00A859]">Areas</p>
             <h2 className="mt-4 font-sans text-4xl font-black tracking-normal text-[#414296] md:text-5xl">
               Acesse os espacos culturais
             </h2>
@@ -312,7 +332,10 @@ function Index() {
             <Carousel opts={{ align: "start" }} className="px-0 md:px-12">
               <CarouselContent>
                 {featuredEvents.map((event) => (
-                  <CarouselItem key={event.occurrenceId ?? event.id} className="md:basis-1/2 lg:basis-1/3">
+                  <CarouselItem
+                    key={event.occurrenceId ?? event.id}
+                    className="md:basis-1/2 lg:basis-1/3"
+                  >
                     <a
                       href={`/eventos/${getEventSlug(event)}`}
                       className="group block min-h-[28rem] overflow-hidden border-2 border-white/20 bg-white text-[#24223A] transition hover:-translate-y-1 hover:border-[#F7A600]"

@@ -9,7 +9,7 @@ import {
   X,
   UserRound,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { SecretariaPage } from "@/components/SecretariaPage";
 import { SecretariaHeader, SiteFooter } from "@/components/SiteHeader";
@@ -29,6 +29,7 @@ import {
   type CulturalEvent,
 } from "@/lib/events";
 import { richTextToPlainText, sanitizeRichText } from "@/lib/richText";
+import { readPublicEventsFromBrowser } from "@/lib/publicEvents.browser";
 import { getEventSlug } from "@/lib/seo";
 
 function addDays(date: Date, days: number) {
@@ -91,11 +92,23 @@ export const Route = createFileRoute("/eventos")({
 });
 
 function Eventos() {
-  const events = Route.useLoaderData();
-  const error = "";
-  const loading = false;
+  const serverEvents = Route.useLoaderData();
+  const [events, setEvents] = useState(serverEvents);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(serverEvents.length === 0);
   const [lightboxImage, setLightboxImage] = useState<{ alt: string; src: string } | null>(null);
   const [selectedEventId, setSelectedEventId] = useState("");
+
+  useEffect(() => {
+    if (serverEvents.length > 0) return;
+    readPublicEventsFromBrowser()
+      .then(setEvents)
+      .catch((loadError) => {
+        console.error(loadError);
+        setError("Não foi possível carregar os eventos. Tente novamente mais tarde.");
+      })
+      .finally(() => setLoading(false));
+  }, [serverEvents]);
 
   const visibleEvents = useMemo(() => {
     const today = getTodayDate();
@@ -129,9 +142,7 @@ function Eventos() {
     return Object.entries(grouped).sort(([dateA], [dateB]) => dateA.localeCompare(dateB));
   }, [visibleEvents]);
   const detailUpcomingEvents = useMemo(() => {
-    return visibleEvents
-      .filter((event) => event.id !== selectedEventId)
-      .slice(0, 3);
+    return visibleEvents.filter((event) => event.id !== selectedEventId).slice(0, 3);
   }, [selectedEventId, visibleEvents]);
 
   if (selectedEventId) {
@@ -153,12 +164,7 @@ function Eventos() {
       title="A agenda cultural do municipio em um so lugar."
       description="Programacao de apresentacoes, mostras, oficinas, acoes educativas e eventos promovidos ou apoiados pela Secretaria."
       heroContent={
-        <EventHighlightsCarousel
-          events={featuredEvents}
-          loading={loading}
-          error={error}
-          full
-        />
+        <EventHighlightsCarousel events={featuredEvents} loading={loading} error={error} full />
       }
       cards={[
         {
@@ -193,7 +199,8 @@ function Eventos() {
               </h2>
             </div>
             <p className="max-w-xl text-sm leading-relaxed text-[#5F5D70]">
-              Eventos cadastrados pela area administrativa da Secretaria. Atividades recorrentes aparecem uma vez, com a proxima data e a frequencia.
+              Eventos cadastrados pela area administrativa da Secretaria. Atividades recorrentes
+              aparecem uma vez, com a proxima data e a frequencia.
             </p>
           </div>
 
@@ -216,7 +223,10 @@ function Eventos() {
                 </div>
                 <div className="grid gap-4">
                   {calendarDays.map(([date, dayEvents]) => (
-                    <article key={date} className="grid gap-3 border-2 border-[#E7E7EF] p-5 md:grid-cols-[10rem_1fr]">
+                    <article
+                      key={date}
+                      className="grid gap-3 border-2 border-[#E7E7EF] p-5 md:grid-cols-[10rem_1fr]"
+                    >
                       <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#0B86D8]">
                         {date}
                       </p>
@@ -281,7 +291,9 @@ function Eventos() {
                       <p className="mt-2 text-sm leading-relaxed text-[#5F5D70]">
                         {formatEventVenue(event)}
                       </p>
-                      <p className="mt-2 text-sm leading-relaxed text-[#5F5D70]">{event.secretary}</p>
+                      <p className="mt-2 text-sm leading-relaxed text-[#5F5D70]">
+                        {event.secretary}
+                      </p>
                       {event.description && (
                         <EventDescriptionSummary
                           className="mt-3 line-clamp-3 text-sm leading-relaxed text-[#5F5D70]"
@@ -365,13 +377,19 @@ function EventHighlightsCarousel({
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#F7A600]">
             Destaques
           </p>
-          <h2 className={["mt-2 font-sans font-black text-white", full ? "text-4xl md:text-6xl" : "text-2xl"].join(" ")}>
+          <h2
+            className={[
+              "mt-2 font-sans font-black text-white",
+              full ? "text-4xl md:text-6xl" : "text-2xl",
+            ].join(" ")}
+          >
             Eventos da semana
           </h2>
         </div>
         {full && (
           <p className="max-w-md text-sm leading-relaxed text-white/75">
-            Os proximos eventos aparecem aqui, com prioridade para a semana e complemento com a agenda do mes.
+            Os proximos eventos aparecem aqui, com prioridade para a semana e complemento com a
+            agenda do mes.
           </p>
         )}
       </div>
@@ -379,7 +397,10 @@ function EventHighlightsCarousel({
       <Carousel opts={{ align: "start", loop: events.length > 1 }} className="px-0">
         <CarouselContent>
           {events.map((event) => (
-            <CarouselItem key={event.occurrenceId ?? event.id} className={full ? "md:basis-1/2 lg:basis-1/3" : ""}>
+            <CarouselItem
+              key={event.occurrenceId ?? event.id}
+              className={full ? "md:basis-1/2 lg:basis-1/3" : ""}
+            >
               <a
                 href={`/eventos/${getEventSlug(event)}`}
                 className={[
@@ -628,15 +649,7 @@ function EventDescriptionSummary({
   return <p className={className}>{richTextToPlainText(description)}</p>;
 }
 
-function ImageLightbox({
-  alt,
-  onClose,
-  src,
-}: {
-  alt: string;
-  onClose: () => void;
-  src: string;
-}) {
+function ImageLightbox({ alt, onClose, src }: { alt: string; onClose: () => void; src: string }) {
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
