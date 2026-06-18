@@ -1,5 +1,6 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarDays, Clock, ExternalLink, MapPin } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { PageHeader, SiteFooter } from "@/components/SiteHeader";
 import { getPublicEvent } from "@/lib/api/publicEvents.functions";
@@ -9,6 +10,7 @@ import {
   formatEventSchedule,
   formatEventVenue,
 } from "@/lib/events";
+import { readPublicEventsFromBrowser } from "@/lib/publicEvents.browser";
 import { richTextToPlainText, sanitizeRichText } from "@/lib/richText";
 import {
   absoluteUrl,
@@ -20,46 +22,54 @@ import {
 
 export const Route = createFileRoute("/eventos/$slug")({
   loader: async ({ params }) => {
-    const event = await getPublicEvent({ data: { eventId: getEventIdFromSlug(params.slug) } });
-    if (!event) throw notFound();
-    return event;
+    const eventId = getEventIdFromSlug(params.slug);
+    const event = await getPublicEvent({ data: { eventId } });
+    return { event, eventId, slug: params.slug };
   },
   head: ({ loaderData }) => {
     if (!loaderData) return {};
-    const path = `/eventos/${getEventSlug(loaderData)}`;
+    const event = loaderData.event;
+    const path = `/eventos/${event ? getEventSlug(event) : loaderData.slug}`;
+
+    if (!event) {
+      return seoHead({
+        title: "Evento cultural",
+        description: "Detalhes de evento da agenda cultural de Siqueira Campos, Paraná.",
+        path,
+      });
+    }
+
     const description =
-      richTextToPlainText(loaderData.description ?? "") ||
-      `${loaderData.name}, evento cultural em Siqueira Campos, Paraná.`;
-    const startDate = `${loaderData.date}T${loaderData.startTime || "00:00"}:00-03:00`;
-    const endDate = loaderData.endTime
-      ? `${loaderData.date}T${loaderData.endTime}:00-03:00`
-      : undefined;
+      richTextToPlainText(event.description ?? "") ||
+      `${event.name}, evento cultural em Siqueira Campos, Paraná.`;
+    const startDate = `${event.date}T${event.startTime || "00:00"}:00-03:00`;
+    const endDate = event.endTime ? `${event.date}T${event.endTime}:00-03:00` : undefined;
 
     return seoHead({
-      title: loaderData.name,
+      title: event.name,
       description,
       path,
-      image: loaderData.flyerUrl || undefined,
+      image: event.flyerUrl || undefined,
       type: "article",
       jsonLd: [
         breadcrumbJsonLd([
           { name: "Início", path: "/" },
           { name: "Eventos", path: "/eventos" },
-          { name: loaderData.name, path },
+          { name: event.name, path },
         ]),
         {
           "@context": "https://schema.org",
           "@type": "Event",
-          name: loaderData.name,
+          name: event.name,
           description,
           startDate,
           ...(endDate ? { endDate } : {}),
           eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
           eventStatus: "https://schema.org/EventScheduled",
-          image: loaderData.flyerUrl ? [absoluteUrl(loaderData.flyerUrl)] : undefined,
+          image: event.flyerUrl ? [absoluteUrl(event.flyerUrl)] : undefined,
           location: {
             "@type": "Place",
-            name: formatEventVenue(loaderData),
+            name: formatEventVenue(event),
             address: {
               "@type": "PostalAddress",
               addressLocality: "Siqueira Campos",
@@ -69,7 +79,7 @@ export const Route = createFileRoute("/eventos/$slug")({
           },
           organizer: {
             "@type": "GovernmentOrganization",
-            name: loaderData.secretary || "Secretaria Municipal de Cultura de Siqueira Campos",
+            name: event.secretary || "Secretaria Municipal de Cultura de Siqueira Campos",
             url: absoluteUrl("/"),
           },
           url: absoluteUrl(path),
@@ -82,7 +92,58 @@ export const Route = createFileRoute("/eventos/$slug")({
 });
 
 function EventDetail() {
-  const event = Route.useLoaderData();
+  const loaderData = Route.useLoaderData();
+  const [event, setEvent] = useState(loaderData.event);
+  const [loading, setLoading] = useState(!loaderData.event);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (loaderData.event) return;
+
+    readPublicEventsFromBrowser()
+      .then((events) => {
+        const matchingEvent = events.find((candidate) => candidate.id === loaderData.eventId);
+        if (matchingEvent) setEvent(matchingEvent);
+        else setError("Evento não encontrado.");
+      })
+      .catch((loadError) => {
+        console.error(loadError);
+        setError("Não foi possível carregar este evento.");
+      })
+      .finally(() => setLoading(false));
+  }, [loaderData.event, loaderData.eventId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F8F8FB] text-[#24223A]">
+        <PageHeader />
+        <main className="mx-auto max-w-6xl px-6 py-24 md:px-10">
+          <p className="border border-[#DDDDE8] bg-white p-8">Carregando evento...</p>
+        </main>
+        <SiteFooter />
+      </div>
+    );
+  }
+
+  if (!event) {
+    return (
+      <div className="min-h-screen bg-[#F8F8FB] text-[#24223A]">
+        <PageHeader />
+        <main className="mx-auto max-w-6xl px-6 py-24 md:px-10">
+          <h1 className="text-4xl font-black text-[#414296]">Evento não encontrado</h1>
+          <p className="mt-5 text-[#5F5D70]">{error}</p>
+          <Link
+            to="/eventos"
+            className="mt-8 inline-block bg-[#414296] px-6 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-white"
+          >
+            Voltar para a agenda
+          </Link>
+        </main>
+        <SiteFooter />
+      </div>
+    );
+  }
+
   const recurrence = formatEventRecurrence(event);
 
   return (
