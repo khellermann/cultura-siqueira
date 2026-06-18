@@ -3,7 +3,7 @@ import { getFirebaseAdminDb } from "@/lib/firebaseAdmin.server";
 
 export async function readPublicEvents() {
   try {
-    const firebaseAdminDb = getFirebaseAdminDb();
+    const firebaseAdminDb = await getFirebaseAdminDb();
     if (!firebaseAdminDb) return [];
     const snapshot = await firebaseAdminDb
       .collection(eventsCollection)
@@ -21,7 +21,7 @@ export async function readPublicEvents() {
 
 export async function readPublicEvent(eventId: string) {
   try {
-    const firebaseAdminDb = getFirebaseAdminDb();
+    const firebaseAdminDb = await getFirebaseAdminDb();
     if (!firebaseAdminDb) return null;
     const snapshot = await firebaseAdminDb.collection(eventsCollection).doc(eventId).get();
     if (!snapshot.exists()) return null;

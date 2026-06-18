@@ -1,6 +1,3 @@
-import { applicationDefault, cert, getApps, initializeApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
-
 type ServiceAccountSecret = {
   client_email: string;
   private_key: string;
@@ -28,7 +25,8 @@ function parseServiceAccount(value: string): ServiceAccountSecret {
   };
 }
 
-function getFirebaseAdminApp() {
+async function getFirebaseAdminApp() {
+  const { applicationDefault, cert, getApps, initializeApp } = await import("firebase-admin/app");
   const existingApp = getApps()[0];
   if (existingApp) return existingApp;
 
@@ -56,10 +54,12 @@ function getFirebaseAdminApp() {
   return null;
 }
 
-export function getFirebaseAdminDb() {
+export async function getFirebaseAdminDb() {
   try {
-    const app = getFirebaseAdminApp();
-    return app ? getFirestore(app) : null;
+    const app = await getFirebaseAdminApp();
+    if (!app) return null;
+    const { getFirestore } = await import("firebase-admin/firestore");
+    return getFirestore(app);
   } catch (error) {
     console.error(
       "Firebase Admin is not configured correctly. Browser fallback will be used.",
