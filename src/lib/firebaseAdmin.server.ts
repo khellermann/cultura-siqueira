@@ -8,7 +8,15 @@ type ServiceAccountSecret = {
 };
 
 function parseServiceAccount(value: string): ServiceAccountSecret {
-  const parsed = JSON.parse(value) as Partial<ServiceAccountSecret>;
+  const trimmedValue = value.trim();
+  let parsedValue: unknown = JSON.parse(trimmedValue);
+
+  // Some hosting dashboards store pasted JSON as a quoted JSON string.
+  if (typeof parsedValue === "string") {
+    parsedValue = JSON.parse(parsedValue);
+  }
+
+  const parsed = parsedValue as Partial<ServiceAccountSecret>;
   if (!parsed.project_id || !parsed.client_email || !parsed.private_key) {
     throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is incomplete.");
   }
@@ -49,6 +57,14 @@ function getFirebaseAdminApp() {
 }
 
 export function getFirebaseAdminDb() {
-  const app = getFirebaseAdminApp();
-  return app ? getFirestore(app) : null;
+  try {
+    const app = getFirebaseAdminApp();
+    return app ? getFirestore(app) : null;
+  } catch (error) {
+    console.error(
+      "Firebase Admin is not configured correctly. Browser fallback will be used.",
+      error,
+    );
+    return null;
+  }
 }

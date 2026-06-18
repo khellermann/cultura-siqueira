@@ -2,9 +2,9 @@ import { eventsCollection, type CulturalEvent } from "@/lib/events";
 import { getFirebaseAdminDb } from "@/lib/firebaseAdmin.server";
 
 export async function readPublicEvents() {
-  const firebaseAdminDb = getFirebaseAdminDb();
-  if (!firebaseAdminDb) return [];
   try {
+    const firebaseAdminDb = getFirebaseAdminDb();
+    if (!firebaseAdminDb) return [];
     const snapshot = await firebaseAdminDb
       .collection(eventsCollection)
       .orderBy("date", "asc")
@@ -20,9 +20,9 @@ export async function readPublicEvents() {
 }
 
 export async function readPublicEvent(eventId: string) {
-  const firebaseAdminDb = getFirebaseAdminDb();
-  if (!firebaseAdminDb) return null;
   try {
+    const firebaseAdminDb = getFirebaseAdminDb();
+    if (!firebaseAdminDb) return null;
     const snapshot = await firebaseAdminDb.collection(eventsCollection).doc(eventId).get();
     if (!snapshot.exists()) return null;
     return {
