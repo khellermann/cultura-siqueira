@@ -1,11 +1,9 @@
 import "./lib/error-capture";
 
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
-import { z } from "zod";
+import type { HandleUploadBody } from "@vercel/blob/client";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
-import { verifyFirebaseAdminToken } from "./lib/firebaseAdmin.server";
 import { museumGalleryItems } from "./lib/museumCatalog";
 import { readPublicEvents } from "./lib/publicEvents.server";
 import { getEventSlug, getMuseumItemSlug, siteUrl } from "./lib/seo";
@@ -16,11 +14,6 @@ type ServerEntry = {
 };
 
 let serverEntryPromise: Promise<ServerEntry> | undefined;
-
-const blobClientPayloadSchema = z.object({
-  idToken: z.string().min(1),
-  kind: z.enum(["event-image", "public-document"]),
-});
 
 const publicPaths = [
   "/",
@@ -89,12 +82,29 @@ async function getServerEntry(): Promise<ServerEntry> {
 
 async function handleBlobUpload(request: Request) {
   try {
+    const [{ handleUpload }, { verifyFirebaseAdminToken }] = await Promise.all([
+      import("@vercel/blob/client"),
+      import("./lib/firebaseAdmin.server"),
+    ]);
     const body = (await request.json()) as HandleUploadBody;
     const response = await handleUpload({
       body,
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
-        const payload = blobClientPayloadSchema.parse(JSON.parse(clientPayload ?? "{}"));
+        const parsedPayload = JSON.parse(clientPayload ?? "{}") as {
+          idToken?: unknown;
+          kind?: unknown;
+        };
+        if (typeof parsedPayload.idToken !== "string" || !parsedPayload.idToken) {
+          throw new Error("Token de autenticacao ausente.");
+        }
+        if (parsedPayload.kind !== "event-image" && parsedPayload.kind !== "public-document") {
+          throw new Error("Tipo de upload invalido.");
+        }
+        const payload = {
+          idToken: parsedPayload.idToken,
+          kind: parsedPayload.kind,
+        };
         await verifyFirebaseAdminToken(payload.idToken);
 
         const expectedPrefix = payload.kind === "event-image" ? "eventos/" : "editais/";
