@@ -5,15 +5,21 @@ import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
+const serverExternals = [
+  "@vercel/blob",
+  "@vercel/blob/client",
+  "@vercel/oidc",
+  "firebase-admin",
+  "firebase-admin/app",
+  "firebase-admin/auth",
+  "firebase-admin/firestore",
+  "@google-cloud/firestore",
+  "google-gax",
+];
+
 export default defineConfig({
   ssr: {
-    external: [
-      "firebase-admin",
-      "firebase-admin/app",
-      "firebase-admin/firestore",
-      "@google-cloud/firestore",
-      "google-gax",
-    ],
+    external: serverExternals,
   },
   plugins: [
     tsConfigPaths(),
@@ -23,22 +29,10 @@ export default defineConfig({
     }),
     nitro({
       rollupConfig: {
-        external: [
-          "firebase-admin",
-          "firebase-admin/app",
-          "firebase-admin/firestore",
-          "@google-cloud/firestore",
-          "google-gax",
-        ],
+        external: serverExternals,
       },
       rolldownConfig: {
-        external: [
-          "firebase-admin",
-          "firebase-admin/app",
-          "firebase-admin/firestore",
-          "@google-cloud/firestore",
-          "google-gax",
-        ],
+        external: serverExternals,
       },
     }),
     react(),

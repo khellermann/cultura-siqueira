@@ -128,6 +128,7 @@ async function handleBlobUpload(request: Request) {
 
     return Response.json(response);
   } catch (error) {
+    console.error("Blob upload authorization failed", error);
     const message = error instanceof Error ? error.message : "Nao foi possivel autorizar o upload.";
     return Response.json({ error: message }, { status: 400 });
   }
