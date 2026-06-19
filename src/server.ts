@@ -82,6 +82,17 @@ async function getServerEntry(): Promise<ServerEntry> {
 
 async function handleBlobUpload(request: Request) {
   try {
+    // @vercel/oidc currently pulls a CommonJS helper into Nitro's ESM bundle.
+    // Expose a scoped Node require before loading the Blob SDK so that helper
+    // can resolve its optional CLI configuration dependencies on Vercel.
+    if (!("require" in globalThis)) {
+      const { createRequire } = await import("node:module");
+      Object.defineProperty(globalThis, "require", {
+        value: createRequire(import.meta.url),
+        configurable: true,
+      });
+    }
+
     const [{ handleUpload }, { verifyFirebaseAdminToken }] = await Promise.all([
       import("@vercel/blob/client"),
       import("./lib/firebaseAdmin.server"),

@@ -6,9 +6,6 @@ import { defineConfig } from "vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
 const serverExternals = [
-  "@vercel/blob",
-  "@vercel/blob/client",
-  "@vercel/oidc",
   "firebase-admin",
   "firebase-admin/app",
   "firebase-admin/auth",
