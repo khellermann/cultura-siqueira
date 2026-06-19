@@ -1,6 +1,7 @@
 import "./lib/error-capture";
 
 import type { HandleUploadBody } from "@vercel/blob/client";
+import { createRequire } from "node:module";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
@@ -8,6 +9,15 @@ import { museumGalleryItems } from "./lib/museumCatalog";
 import { readPublicEvents } from "./lib/publicEvents.server";
 import { getEventSlug, getMuseumItemSlug, siteUrl } from "./lib/seo";
 import { culturalStories } from "./lib/stories";
+
+// Some optional Vercel Blob/OIDC helpers still expect CommonJS `require`.
+// Install it before React Start imports any server-rendered route, including /admin.
+if (!("require" in globalThis)) {
+  Object.defineProperty(globalThis, "require", {
+    value: createRequire(import.meta.url),
+    configurable: true,
+  });
+}
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -82,17 +92,6 @@ async function getServerEntry(): Promise<ServerEntry> {
 
 async function handleBlobUpload(request: Request) {
   try {
-    // @vercel/oidc currently pulls a CommonJS helper into Nitro's ESM bundle.
-    // Expose a scoped Node require before loading the Blob SDK so that helper
-    // can resolve its optional CLI configuration dependencies on Vercel.
-    if (!("require" in globalThis)) {
-      const { createRequire } = await import("node:module");
-      Object.defineProperty(globalThis, "require", {
-        value: createRequire(import.meta.url),
-        configurable: true,
-      });
-    }
-
     const [{ handleUpload }, { verifyFirebaseAdminToken }] = await Promise.all([
       import("@vercel/blob/client"),
       import("./lib/firebaseAdmin.server"),

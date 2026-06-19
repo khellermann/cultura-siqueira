@@ -1,5 +1,3 @@
-import { upload } from "@vercel/blob/client";
-
 import { firebaseAuth } from "@/lib/firebase";
 
 function sanitizeFileName(fileName: string) {
@@ -23,6 +21,7 @@ export async function uploadPublicDocument(file: File) {
   const idToken = await user.getIdToken();
   const originalName = sanitizeFileName(file.name);
   const fileName = `${Date.now()}-${/\.pdf$/i.test(originalName) ? originalName : `${originalName}.pdf`}`;
+  const { upload } = await import("@vercel/blob/client");
   const blob = await upload(`editais/${fileName}`, file, {
     access: "public",
     handleUploadUrl: "/api/blob-upload",

@@ -1,5 +1,3 @@
-import { upload } from "@vercel/blob/client";
-
 import { firebaseAuth } from "@/lib/firebase";
 
 function sanitizeFileName(fileName: string) {
@@ -22,6 +20,7 @@ export async function uploadEventFlyer(file: File) {
 
   const idToken = await user.getIdToken();
   const fileName = `${Date.now()}-${sanitizeFileName(file.name)}`;
+  const { upload } = await import("@vercel/blob/client");
   const blob = await upload(`eventos/${fileName}`, file, {
     access: "public",
     handleUploadUrl: "/api/blob-upload",
