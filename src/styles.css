@@ -175,6 +175,43 @@
   }
 }
 
+@keyframes not-found-curtain-left {
+  0%,
+  12% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  100% {
+    transform: translate3d(-92%, 0, 0);
+  }
+}
+
+@keyframes not-found-curtain-right {
+  0%,
+  12% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  100% {
+    transform: translate3d(92%, 0, 0);
+  }
+}
+
+.not-found-curtain {
+  animation-duration: 2.35s;
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.77, 0, 0.175, 1);
+  backface-visibility: hidden;
+}
+
+.not-found-curtain-left {
+  animation-name: not-found-curtain-left;
+}
+
+.not-found-curtain-right {
+  animation-name: not-found-curtain-right;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   body > div {
     animation: page-enter 560ms ease-out both;

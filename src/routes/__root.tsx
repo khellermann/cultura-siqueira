@@ -28,6 +28,7 @@ function ScrollReveal() {
           !element.closest("[role='dialog']") &&
           !element.closest("header") &&
           !element.closest("footer") &&
+          !element.closest("[data-disable-scroll-reveal]") &&
           !element.classList.contains("scroll-reveal"),
       );
 
