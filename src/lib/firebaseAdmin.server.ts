@@ -68,3 +68,23 @@ export async function getFirebaseAdminDb() {
     return null;
   }
 }
+
+export async function verifyFirebaseAdminToken(idToken: string) {
+  const app = await getFirebaseAdminApp();
+  if (!app) throw new Error("Firebase Admin nao esta configurado.");
+
+  const [{ getAuth }, { getFirestore }] = await Promise.all([
+    import("firebase-admin/auth"),
+    import("firebase-admin/firestore"),
+  ]);
+  const decodedToken = await getAuth(app).verifyIdToken(idToken);
+  const email = decodedToken.email?.trim().toLowerCase();
+
+  if (!email) throw new Error("Usuario sem e-mail autenticado.");
+  if (email === "khellermann@gmail.com") return email;
+
+  const adminDocument = await getFirestore(app).collection("admin_users").doc(email).get();
+  if (!adminDocument.exists) throw new Error("Usuario sem permissao administrativa.");
+
+  return email;
+}

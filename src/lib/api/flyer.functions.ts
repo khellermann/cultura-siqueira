@@ -1,10 +1,6 @@
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
+import { upload } from "@vercel/blob/client";
 
-const uploadEventFlyerInput = z.object({
-  dataUrl: z.string().min(1),
-  fileName: z.string().min(1),
-});
+import { firebaseAuth } from "@/lib/firebase";
 
 function sanitizeFileName(fileName: string) {
   const cleanName = fileName
@@ -20,37 +16,21 @@ function sanitizeFileName(fileName: string) {
   return `${baseName || "flyer"}${extension}`;
 }
 
-export const uploadEventFlyer = createServerFn({ method: "POST" })
-  .inputValidator(uploadEventFlyerInput)
-  .handler(async ({ data }) => {
-    const [{ mkdir, writeFile }, path] = await Promise.all([
-      import("node:fs/promises"),
-      import("node:path"),
-    ]);
-    const match = data.dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+export async function uploadEventFlyer(file: File) {
+  const user = firebaseAuth?.currentUser;
+  if (!user) throw new Error("Entre novamente no painel para enviar o arquivo.");
 
-    if (!match) {
-      throw new Error("Arquivo de flyer invalido.");
-    }
-
-    const [, mimeType, base64] = match;
-    const extensionByMime: Record<string, string> = {
-      "image/jpeg": ".jpg",
-      "image/png": ".png",
-      "image/webp": ".webp",
-      "image/gif": ".gif",
-    };
-    const originalName = sanitizeFileName(data.fileName);
-    const fallbackExtension = extensionByMime[mimeType] ?? ".png";
-    const hasExtension = /\.[a-zA-Z0-9]+$/.test(originalName);
-    const fileName = `${Date.now()}-${hasExtension ? originalName : `${originalName}${fallbackExtension}`}`;
-    const publicDir = path.join(process.cwd(), "public", "eventos");
-    const absolutePath = path.join(publicDir, fileName);
-
-    await mkdir(publicDir, { recursive: true });
-    await writeFile(absolutePath, Buffer.from(base64, "base64"));
-
-    return {
-      path: `/eventos/${fileName}`,
-    };
+  const idToken = await user.getIdToken();
+  const fileName = `${Date.now()}-${sanitizeFileName(file.name)}`;
+  const blob = await upload(`eventos/${fileName}`, file, {
+    access: "public",
+    handleUploadUrl: "/api/blob-upload",
+    clientPayload: JSON.stringify({ idToken, kind: "event-image" }),
+    contentType: file.type,
   });
+
+  return {
+    path: blob.pathname,
+    url: blob.url,
+  };
+}

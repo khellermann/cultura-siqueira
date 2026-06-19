@@ -1,10 +1,6 @@
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
+import { upload } from "@vercel/blob/client";
 
-const uploadPublicDocumentInput = z.object({
-  dataUrl: z.string().min(1),
-  fileName: z.string().min(1),
-});
+import { firebaseAuth } from "@/lib/firebase";
 
 function sanitizeFileName(fileName: string) {
   const cleanName = fileName
@@ -20,30 +16,22 @@ function sanitizeFileName(fileName: string) {
   return `${baseName || "documento"}${extension}`;
 }
 
-export const uploadPublicDocument = createServerFn({ method: "POST" })
-  .inputValidator(uploadPublicDocumentInput)
-  .handler(async ({ data }) => {
-    const [{ mkdir, writeFile }, path] = await Promise.all([
-      import("node:fs/promises"),
-      import("node:path"),
-    ]);
-    const match = data.dataUrl.match(/^data:(application\/pdf);base64,(.+)$/);
+export async function uploadPublicDocument(file: File) {
+  const user = firebaseAuth?.currentUser;
+  if (!user) throw new Error("Entre novamente no painel para enviar o arquivo.");
 
-    if (!match) {
-      throw new Error("Documento invalido. Envie um PDF.");
-    }
-
-    const [, , base64] = match;
-    const originalName = sanitizeFileName(data.fileName);
-    const hasExtension = /\.pdf$/i.test(originalName);
-    const fileName = `${Date.now()}-${hasExtension ? originalName : `${originalName}.pdf`}`;
-    const publicDir = path.join(process.cwd(), "public", "editais");
-    const absolutePath = path.join(publicDir, fileName);
-
-    await mkdir(publicDir, { recursive: true });
-    await writeFile(absolutePath, Buffer.from(base64, "base64"));
-
-    return {
-      path: `/editais/${fileName}`,
-    };
+  const idToken = await user.getIdToken();
+  const originalName = sanitizeFileName(file.name);
+  const fileName = `${Date.now()}-${/\.pdf$/i.test(originalName) ? originalName : `${originalName}.pdf`}`;
+  const blob = await upload(`editais/${fileName}`, file, {
+    access: "public",
+    handleUploadUrl: "/api/blob-upload",
+    clientPayload: JSON.stringify({ idToken, kind: "public-document" }),
+    contentType: "application/pdf",
   });
+
+  return {
+    path: blob.pathname,
+    url: blob.url,
+  };
+}

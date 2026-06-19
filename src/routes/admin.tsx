@@ -222,10 +222,10 @@ function getFirebaseErrorMessage(error: unknown) {
   const detail = code || message ? ` Detalhe: ${[code, message].filter(Boolean).join(" - ")}` : "";
 
   if (code.includes("permission-denied") || code.includes("unauthorized")) {
-    return `Sem permissao para salvar. Confira se o e-mail logado esta autorizado no Firebase e se as regras foram publicadas.${detail}`;
+    return `Sem permissao para salvar. Confira se o e-mail logado esta autorizado como administrador.${detail}`;
   }
 
-  return `Nao foi possivel cadastrar o evento. Confira o Firebase e tente novamente.${detail}`;
+  return `Nao foi possivel cadastrar o evento. Confira a conexao e tente novamente.${detail}`;
 }
 
 function validateFlyer(file: File) {
@@ -238,15 +238,6 @@ function validateFlyer(file: File) {
   }
 
   return "";
-}
-
-function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener("load", () => resolve(String(reader.result ?? "")));
-    reader.addEventListener("error", () => reject(new Error("Nao foi possivel ler a imagem.")));
-    reader.readAsDataURL(file);
-  });
 }
 
 function validatePdf(file: File) {
@@ -797,15 +788,9 @@ function handleFlyerChange(file: File | null) {
       let flyerUrl = editingEvent?.flyerUrl ?? "";
 
       if (flyer) {
-        const dataUrl = await readFileAsDataUrl(flyer);
-        const uploadedFlyer = await uploadEventFlyer({
-          data: {
-            dataUrl,
-            fileName: flyer.name,
-          },
-        });
+        const uploadedFlyer = await uploadEventFlyer(flyer);
         flyerPath = uploadedFlyer.path;
-        flyerUrl = uploadedFlyer.path;
+        flyerUrl = uploadedFlyer.url;
       }
 
       const eventPayload = {
@@ -922,31 +907,19 @@ function handleFlyerChange(file: File | null) {
       let bannerUrl = opportunityForm.bannerUrl;
 
       if (opportunityBanner) {
-        const dataUrl = await readFileAsDataUrl(opportunityBanner);
-        const uploadedBanner = await uploadEventFlyer({
-          data: {
-            dataUrl,
-            fileName: opportunityBanner.name,
-          },
-        });
+        const uploadedBanner = await uploadEventFlyer(opportunityBanner);
         bannerPath = uploadedBanner.path;
-        bannerUrl = uploadedBanner.path;
+        bannerUrl = uploadedBanner.url;
       }
 
       const uploadedDocuments = await Promise.all(
         opportunityDocuments.map(async (documentFile) => {
-          const dataUrl = await readFileAsDataUrl(documentFile);
-          const uploadedDocument = await uploadPublicDocument({
-            data: {
-              dataUrl,
-              fileName: documentFile.name,
-            },
-          });
+          const uploadedDocument = await uploadPublicDocument(documentFile);
 
           return {
             name: documentFile.name,
             path: uploadedDocument.path,
-            url: uploadedDocument.path,
+            url: uploadedDocument.url,
           };
         }),
       );

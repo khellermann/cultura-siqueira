@@ -1,7 +1,11 @@
 import "./lib/error-capture";
 
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { z } from "zod";
+
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { verifyFirebaseAdminToken } from "./lib/firebaseAdmin.server";
 import { museumGalleryItems } from "./lib/museumCatalog";
 import { readPublicEvents } from "./lib/publicEvents.server";
 import { getEventSlug, getMuseumItemSlug, siteUrl } from "./lib/seo";
@@ -12,6 +16,11 @@ type ServerEntry = {
 };
 
 let serverEntryPromise: Promise<ServerEntry> | undefined;
+
+const blobClientPayloadSchema = z.object({
+  idToken: z.string().min(1),
+  kind: z.enum(["event-image", "public-document"]),
+});
 
 const publicPaths = [
   "/",
@@ -78,6 +87,42 @@ async function getServerEntry(): Promise<ServerEntry> {
   return serverEntryPromise;
 }
 
+async function handleBlobUpload(request: Request) {
+  try {
+    const body = (await request.json()) as HandleUploadBody;
+    const response = await handleUpload({
+      body,
+      request,
+      onBeforeGenerateToken: async (pathname, clientPayload) => {
+        const payload = blobClientPayloadSchema.parse(JSON.parse(clientPayload ?? "{}"));
+        await verifyFirebaseAdminToken(payload.idToken);
+
+        const expectedPrefix = payload.kind === "event-image" ? "eventos/" : "editais/";
+        if (!pathname.startsWith(expectedPrefix)) {
+          throw new Error("Destino de upload invalido.");
+        }
+
+        return {
+          allowedContentTypes:
+            payload.kind === "event-image"
+              ? ["image/jpeg", "image/png", "image/webp", "image/gif"]
+              : ["application/pdf"],
+          maximumSizeInBytes: payload.kind === "event-image" ? 5 * 1024 * 1024 : 10 * 1024 * 1024,
+          addRandomSuffix: true,
+          cacheControlMaxAge: 31_536_000,
+          tokenPayload: JSON.stringify({ admin: true, kind: payload.kind }),
+        };
+      },
+      onUploadCompleted: async () => {},
+    });
+
+    return Response.json(response);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Nao foi possivel autorizar o upload.";
+    return Response.json({ error: message }, { status: 400 });
+  }
+}
+
 // h3 swallows in-handler throws into a normal 500 Response with body
 // {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
 async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
@@ -104,6 +149,10 @@ export default {
       const officialHost = new URL(siteUrl).hostname;
       const isOfficialHost = url.hostname === officialHost;
       const isLocalHost = ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
+
+      if (url.pathname === "/api/blob-upload" && request.method === "POST") {
+        return handleBlobUpload(request);
+      }
 
       if (url.pathname === "/robots.txt") {
         const body = isOfficialHost
