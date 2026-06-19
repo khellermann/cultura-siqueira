@@ -24,8 +24,27 @@ function CasaDaCultura() {
       accentColor="#F7A600"
       eyebrow="Casa da Cultura"
       icon={Theater}
-      title="Um espaço para criar, apresentar e aprender."
-      description="A Casa da Cultura reúne oficinas, ensaios, apresentações e encontros que fortalecem a produção artística local."
+      title="Onde a cultura sobe ao palco."
+      description="Da criação ao encontro com o público, a Casa da Cultura acolhe oficinas, ensaios e apresentações que movimentam a produção artística de Siqueira Campos."
+      heroVisual={
+        <figure className="relative mx-auto max-w-[34rem] border-2 border-[#F7A600] bg-white p-3 shadow-[0_24px_70px_rgba(65,66,150,0.16)]">
+          <div className="overflow-hidden bg-[#24223A]">
+            <img
+              src="/casa-da-cultura/auditorio-casa-da-cultura.jfif"
+              alt="Vista do palco para a plateia do auditório da Casa da Cultura"
+              className="aspect-[16/10] w-full object-cover"
+              width={1600}
+              height={900}
+            />
+          </div>
+          <figcaption className="px-2 pb-1 pt-4 text-sm leading-relaxed text-[#5F5D70]">
+            Um espaço preparado para receber histórias, ideias e diferentes expressões artísticas.
+          </figcaption>
+          <div className="absolute -bottom-5 -right-5 flex h-20 w-20 items-center justify-center bg-[#F7A600] text-white">
+            <Theater className="h-9 w-9" />
+          </div>
+        </figure>
+      }
       cards={[
         {
           icon: Theater,
