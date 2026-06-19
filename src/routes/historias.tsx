@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { PageHeader, SiteFooter } from "@/components/SiteHeader";
 import { culturalStories } from "@/lib/stories";
-import { breadcrumbJsonLd, seoHead } from "@/lib/seo";
+import { breadcrumbJsonLd, seoHead, socialImages } from "@/lib/seo";
 
 export const Route = createFileRoute("/historias")({
   head: () =>
@@ -11,6 +11,7 @@ export const Route = createFileRoute("/historias")({
       description:
         "Histórias do acervo, patrimônio, memória local e guias culturais de Siqueira Campos e do Norte Pioneiro.",
       path: "/historias",
+      image: socialImages.stories,
       jsonLd: [
         breadcrumbJsonLd([
           { name: "Início", path: "/" },

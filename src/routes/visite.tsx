@@ -5,6 +5,7 @@ import type { FormEvent, ReactNode } from "react";
 import { useMemo, useState } from "react";
 
 import { PageHeader, SiteFooter } from "@/components/SiteHeader";
+import { seoHead, socialImages } from "@/lib/seo";
 import { cultureContact, formatPhones } from "@/lib/contact";
 import { firebaseDb } from "@/lib/firebase";
 import {
@@ -43,19 +44,14 @@ const inputClass =
 const labelClass = "text-[10px] uppercase tracking-[0.22em] text-muted-foreground";
 
 export const Route = createFileRoute("/visite")({
-  head: () => ({
-    meta: [
-      { title: "Visite - Museu de Siqueira Campos" },
-      {
-        name: "description",
-        content:
-          "Horários, endereço, contato e formulário para planejar visitas escolares e grupos ao Museu de Siqueira Campos.",
-      },
-      { property: "og:title", content: "Planeje sua visita ao Museu" },
-      { property: "og:description", content: "Terça a sábado - entrada gratuita." },
-    ],
-    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/visite" }],
-  }),
+  head: () =>
+    seoHead({
+      title: "Planeje sua visita ao Museu",
+      description:
+        "Consulte horários, endereço e contato ou solicite uma visita escolar e em grupo ao Museu Histórico Municipal.",
+      path: "/visite",
+      image: socialImages.visit,
+    }),
   component: Visite,
 });
 

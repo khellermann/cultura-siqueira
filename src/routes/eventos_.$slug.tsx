@@ -16,6 +16,7 @@ import { richTextToPlainText, sanitizeRichText } from "@/lib/richText";
 import {
   absoluteUrl,
   breadcrumbJsonLd,
+  eventSocialImage,
   getEventIdFromSlug,
   getEventSlug,
   seoHead,
@@ -50,7 +51,7 @@ export const Route = createFileRoute("/eventos_/$slug")({
       title: event.name,
       description,
       path,
-      image: event.flyerUrl || undefined,
+      image: eventSocialImage(event.flyerUrl, event.name),
       type: "article",
       jsonLd: [
         breadcrumbJsonLd([

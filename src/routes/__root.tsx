@@ -9,7 +9,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import { CulturalNotFound } from "@/components/CulturalNotFound";
-import { organizationJsonLd } from "@/lib/seo";
+import { absoluteUrl, organizationJsonLd, socialImages } from "@/lib/seo";
 import appCss from "../styles.css?url";
 
 function ScrollReveal() {
@@ -162,10 +162,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         property: "og:description",
         content: "Museu, biblioteca, Casa da Cultura, inscrições e eventos culturais do município.",
       },
+      { property: "og:url", content: absoluteUrl("/") },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Secretaria Municipal de Cultura de Siqueira Campos" },
       { property: "og:locale", content: "pt_BR" },
+      { property: "og:image", content: absoluteUrl(socialImages.home.src) },
+      { property: "og:image:secure_url", content: absoluteUrl(socialImages.home.src) },
+      { property: "og:image:type", content: socialImages.home.type },
+      { property: "og:image:width", content: String(socialImages.home.width) },
+      { property: "og:image:height", content: String(socialImages.home.height) },
+      { property: "og:image:alt", content: socialImages.home.alt },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Secretaria Municipal de Cultura de Siqueira Campos" },
+      {
+        name: "twitter:description",
+        content: "Museu, biblioteca, Casa da Cultura, inscrições e eventos culturais do município.",
+      },
+      { name: "twitter:image", content: absoluteUrl(socialImages.home.src) },
+      { name: "twitter:image:alt", content: socialImages.home.alt },
       ...(googleSiteVerification
         ? [{ name: "google-site-verification", content: googleSiteVerification }]
         : []),

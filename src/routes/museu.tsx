@@ -12,6 +12,7 @@ import {
   type MuseumGalleryFilter,
   type MuseumGalleryItem,
 } from "@/lib/museumCatalog";
+import { seoHead, socialImages } from "@/lib/seo";
 
 const hero = "/museu-galeria/museu-galeria-12.jpeg";
 
@@ -19,24 +20,14 @@ const museumIntro =
   "O Museu Histórico Municipal preserva parte importante da trajetória de Siqueira Campos. Entre salas, vitrines e ambientes reconstituídos, o visitante encontra objetos do cotidiano, documentos, fotografias, ferramentas, mobiliário, peças religiosas e registros que revelam diferentes momentos da vida local.";
 
 export const Route = createFileRoute("/museu")({
-  head: () => ({
-    meta: [
-      { title: "Museu Histórico Municipal - Secretaria Municipal de Cultura" },
-      {
-        name: "description",
-        content:
-          "Museu Histórico Municipal de Siqueira Campos: acervo, memória, visitas, ambientes históricos e galeria de imagens.",
-      },
-      { property: "og:title", content: "Museu Histórico Municipal de Siqueira Campos" },
-      {
-        property: "og:description",
-        content:
-          "Um espaço de preservação da memória histórica e cultural de Siqueira Campos.",
-      },
-      { property: "og:image", content: hero },
-    ],
-    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/museu" }],
-  }),
+  head: () =>
+    seoHead({
+      title: "Museu Histórico Municipal de Siqueira Campos",
+      description:
+        "Conheça o acervo, os ambientes históricos, a galeria de imagens e as opções de visita ao Museu Histórico Municipal.",
+      path: "/museu",
+      image: socialImages.museum,
+    }),
   component: Museu,
 });
 

@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BookOpen, HandHeart, Images, UsersRound } from "lucide-react";
 
 import { PageHeader, SiteFooter } from "@/components/SiteHeader";
+import { seoHead, socialImages } from "@/lib/seo";
 
 const values = [
   {
@@ -45,22 +46,14 @@ const memoryImages = [
 ] as const;
 
 export const Route = createFileRoute("/sobre")({
-  head: () => ({
-    meta: [
-      { title: "Sobre - Museu de Siqueira Campos" },
-      {
-        name: "description",
-        content:
-          "A trajetória, a missão e o papel do Museu de Siqueira Campos na preservação da memória do Norte Pioneiro do Paraná.",
-      },
-      { property: "og:title", content: "Sobre o Museu de Siqueira Campos" },
-      {
-        property: "og:description",
-        content: "Preservar, valorizar e divulgar a memória siqueirense.",
-      },
-    ],
-    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/sobre" }],
-  }),
+  head: () =>
+    seoHead({
+      title: "Sobre o Museu",
+      description:
+        "Conheça a trajetória, a missão e o papel do Museu na preservação e valorização da memória de Siqueira Campos.",
+      path: "/sobre",
+      image: socialImages.about,
+    }),
   component: Sobre,
 });
 

@@ -6,6 +6,7 @@ import {
   breadcrumbJsonLd,
   getMuseumItemIdFromSlug,
   getMuseumItemSlug,
+  inferImageMimeType,
   museumJsonLd,
   seoHead,
 } from "@/lib/seo";
@@ -25,7 +26,11 @@ export const Route = createFileRoute("/acervo_/$slug")({
       title: `${loaderData.title} - Acervo do Museu`,
       description: loaderData.description,
       path,
-      image: loaderData.image,
+      image: {
+        src: loaderData.image,
+        alt: loaderData.alt,
+        type: inferImageMimeType(loaderData.image),
+      },
       type: "article",
       jsonLd: [
         breadcrumbJsonLd([

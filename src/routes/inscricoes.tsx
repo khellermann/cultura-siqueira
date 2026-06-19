@@ -16,6 +16,7 @@ import {
   type RegistrationFieldKey,
   type RegistrationOpportunity,
 } from "@/lib/registrations";
+import { seoHead, socialImages } from "@/lib/seo";
 
 type RegistrationFormState = {
   address: string;
@@ -49,17 +50,14 @@ type RegistrationReceipt = {
 };
 
 export const Route = createFileRoute("/inscricoes")({
-  head: () => ({
-    meta: [
-      { title: "Inscricoes - Secretaria Municipal de Cultura" },
-      {
-        name: "description",
-        content:
-          "Inscricoes abertas da Secretaria Municipal de Cultura de Siqueira Campos: oficinas, cursos e eventos.",
-      },
-    ],
-    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/inscricoes" }],
-  }),
+  head: () =>
+    seoHead({
+      title: "Inscrições culturais",
+      description:
+        "Inscreva-se em oficinas, cursos, eventos e outras oportunidades da Secretaria Municipal de Cultura.",
+      path: "/inscricoes",
+      image: socialImages.registrations,
+    }),
   component: Inscricoes,
 });
 

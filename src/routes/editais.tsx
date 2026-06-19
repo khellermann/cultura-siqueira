@@ -12,18 +12,17 @@ import {
   registrationOpportunitiesCollection,
   type RegistrationOpportunity,
 } from "@/lib/registrations";
+import { seoHead, socialImages } from "@/lib/seo";
 
 export const Route = createFileRoute("/editais")({
-  head: () => ({
-    meta: [
-      { title: "Editais - Secretaria Municipal de Cultura" },
-      {
-        name: "description",
-        content: "Editais abertos da Secretaria Municipal de Cultura de Siqueira Campos.",
-      },
-    ],
-    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/editais" }],
-  }),
+  head: () =>
+    seoHead({
+      title: "Editais e chamadas culturais",
+      description:
+        "Acompanhe editais, chamamentos e oportunidades publicados pela Secretaria Municipal de Cultura.",
+      path: "/editais",
+      image: socialImages.edicts,
+    }),
   component: Editais,
 });
 

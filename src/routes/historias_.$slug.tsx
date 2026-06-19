@@ -2,7 +2,13 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 
 import { PageHeader, SiteFooter } from "@/components/SiteHeader";
 import { getCulturalStory } from "@/lib/stories";
-import { absoluteUrl, breadcrumbJsonLd, organizationJsonLd, seoHead } from "@/lib/seo";
+import {
+  absoluteUrl,
+  breadcrumbJsonLd,
+  inferImageMimeType,
+  organizationJsonLd,
+  seoHead,
+} from "@/lib/seo";
 
 export const Route = createFileRoute("/historias_/$slug")({
   loader: ({ params }) => {
@@ -17,7 +23,11 @@ export const Route = createFileRoute("/historias_/$slug")({
       title: loaderData.title,
       description: loaderData.description,
       path,
-      image: loaderData.image,
+      image: {
+        src: loaderData.image,
+        alt: loaderData.imageAlt,
+        type: inferImageMimeType(loaderData.image),
+      },
       type: "article",
       jsonLd: [
         breadcrumbJsonLd([

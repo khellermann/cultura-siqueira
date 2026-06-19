@@ -15,6 +15,7 @@ import type { FormEvent, ReactNode } from "react";
 import { useMemo, useState } from "react";
 
 import { PageHeader, SiteFooter } from "@/components/SiteHeader";
+import { seoHead, socialImages } from "@/lib/seo";
 import {
   contributionRequestsCollection,
   type ContributionRequestInput,
@@ -85,22 +86,14 @@ const contributionWays = [
 ] as const;
 
 export const Route = createFileRoute("/contribua")({
-  head: () => ({
-    meta: [
-      { title: "Contribua - Museu de Siqueira Campos" },
-      {
-        name: "description",
-        content:
-          "Saiba como contribuir com o Museu de Siqueira Campos por meio de doações, documentos, fotografias e memórias da comunidade.",
-      },
-      { property: "og:title", content: "Contribua com o Museu de Siqueira Campos" },
-      {
-        property: "og:description",
-        content: "Ajude a preservar a memória histórica e cultural do município.",
-      },
-    ],
-    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/contribua" }],
-  }),
+  head: () =>
+    seoHead({
+      title: "Contribua com o Museu",
+      description:
+        "Compartilhe documentos, fotografias, objetos e memórias que ajudem a preservar a história de Siqueira Campos.",
+      path: "/contribua",
+      image: socialImages.contribute,
+    }),
   component: Contribua,
 });
 

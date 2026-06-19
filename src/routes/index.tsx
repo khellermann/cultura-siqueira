@@ -19,7 +19,6 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import culturaLogo from "@/assets/cultura-logo-horizontal.png";
 import culturaLogoStacked from "@/assets/cultura-logo-stacked.png";
 import {
   expandEventOccurrences,
@@ -32,7 +31,7 @@ import { getPublicEvents } from "@/lib/api/publicEvents.functions";
 import { museumHomeHighlights } from "@/lib/museumCatalog";
 import { readPublicEventsFromBrowser } from "@/lib/publicEvents.browser";
 import { richTextToPlainText } from "@/lib/richText";
-import { getEventSlug } from "@/lib/seo";
+import { getEventSlug, seoHead, socialImages } from "@/lib/seo";
 
 const areas = [
   {
@@ -93,23 +92,14 @@ function uniqueEvents(events: CulturalEvent[]) {
 
 export const Route = createFileRoute("/")({
   loader: () => getPublicEvents(),
-  head: () => ({
-    meta: [
-      { title: "Secretaria Municipal de Cultura de Siqueira Campos" },
-      {
-        name: "description",
-        content:
-          "Portal da Secretaria Municipal de Cultura de Siqueira Campos: museu, biblioteca, casa da cultura, inscricoes e eventos.",
-      },
-      { property: "og:title", content: "Secretaria Municipal de Cultura de Siqueira Campos" },
-      {
-        property: "og:description",
-        content: "Cultura, memoria, leitura e criacao no Norte Pioneiro do Parana.",
-      },
-      { property: "og:image", content: culturaLogo },
-    ],
-    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/" }],
-  }),
+  head: () =>
+    seoHead({
+      title: "Secretaria Municipal de Cultura de Siqueira Campos",
+      description:
+        "Museu, biblioteca, Casa da Cultura, eventos, inscrições e serviços culturais reunidos em um só portal.",
+      path: "/",
+      image: socialImages.home,
+    }),
   component: Index,
 });
 

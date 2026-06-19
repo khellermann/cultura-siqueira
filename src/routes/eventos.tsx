@@ -28,9 +28,9 @@ import {
   formatEventVenue,
   type CulturalEvent,
 } from "@/lib/events";
+import { getEventSlug, seoHead, socialImages } from "@/lib/seo";
 import { richTextToPlainText, sanitizeRichText } from "@/lib/richText";
 import { readPublicEventsFromBrowser } from "@/lib/publicEvents.browser";
-import { getEventSlug } from "@/lib/seo";
 
 function addDays(date: Date, days: number) {
   const nextDate = new Date(date);
@@ -77,17 +77,14 @@ export const Route = createFileRoute("/eventos")({
     }
     return events;
   },
-  head: () => ({
-    meta: [
-      { title: "Eventos - Secretaria Municipal de Cultura" },
-      {
-        name: "description",
-        content:
-          "Agenda cultural de Siqueira Campos: eventos, apresentacoes, mostras, oficinas e acoes publicas.",
-      },
-    ],
-    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/eventos" }],
-  }),
+  head: () =>
+    seoHead({
+      title: "Eventos culturais",
+      description:
+        "Consulte a agenda cultural de Siqueira Campos com eventos, apresentações, mostras, oficinas e ações públicas.",
+      path: "/eventos",
+      image: socialImages.events,
+    }),
   component: Eventos,
 });
 

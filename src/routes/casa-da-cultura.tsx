@@ -2,19 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Mic2, Palette, Theater } from "lucide-react";
 
 import { SecretariaPage } from "@/components/SecretariaPage";
+import { seoHead, socialImages } from "@/lib/seo";
 
 export const Route = createFileRoute("/casa-da-cultura")({
-  head: () => ({
-    meta: [
-      { title: "Casa da Cultura — Secretaria Municipal de Cultura" },
-      {
-        name: "description",
-        content:
-          "Casa da Cultura de Siqueira Campos: oficinas, apresentações, encontros artísticos e ações comunitárias.",
-      },
-    ],
-    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/casa-da-cultura" }],
-  }),
+  head: () =>
+    seoHead({
+      title: "Casa da Cultura",
+      description:
+        "Oficinas, ensaios, apresentações e encontros que movimentam a produção artística de Siqueira Campos.",
+      path: "/casa-da-cultura",
+      image: socialImages.cultureHouse,
+    }),
   component: CasaDaCultura,
 });
 

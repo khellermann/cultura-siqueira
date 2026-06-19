@@ -2,19 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { BookOpen, CalendarDays, LibraryBig, Users } from "lucide-react";
 
 import { SecretariaPage } from "@/components/SecretariaPage";
+import { seoHead, socialImages } from "@/lib/seo";
 
 export const Route = createFileRoute("/biblioteca")({
-  head: () => ({
-    meta: [
-      { title: "Biblioteca — Secretaria Municipal de Cultura" },
-      {
-        name: "description",
-        content:
-          "Biblioteca Municipal de Siqueira Campos: leitura, pesquisa, empréstimos e ações literárias.",
-      },
-    ],
-    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/biblioteca" }],
-  }),
+  head: () =>
+    seoHead({
+      title: "Biblioteca Municipal",
+      description:
+        "Leitura, pesquisa, empréstimo de livros, formação de leitores e programação literária para a comunidade.",
+      path: "/biblioteca",
+      image: socialImages.library,
+    }),
   component: Biblioteca,
 });
 

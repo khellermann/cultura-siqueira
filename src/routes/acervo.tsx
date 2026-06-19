@@ -10,22 +10,17 @@ import {
   type MuseumGalleryFilter,
   type MuseumGalleryItem,
 } from "@/lib/museumCatalog";
-import { getMuseumItemSlug } from "@/lib/seo";
+import { getMuseumItemSlug, seoHead, socialImages } from "@/lib/seo";
 
 export const Route = createFileRoute("/acervo")({
-  head: () => ({
-    meta: [
-      { title: "Acervo - Museu de Siqueira Campos" },
-      {
-        name: "description",
-        content:
-          "Conheça as peças do acervo permanente do Museu de Siqueira Campos: retratos, mobiliário, indumentária, objetos, documentos e ambientes históricos.",
-      },
-      { property: "og:title", content: "Acervo - Museu de Siqueira Campos" },
-      { property: "og:description", content: "Peças que reconstituem a memória do município." },
-    ],
-    links: [{ rel: "canonical", href: "https://cultura.siqueiracampos.pr.gov.br/acervo" }],
-  }),
+  head: () =>
+    seoHead({
+      title: "Acervo do Museu",
+      description:
+        "Conheça retratos, mobiliário, indumentária, documentos, objetos e ambientes que preservam a memória de Siqueira Campos.",
+      path: "/acervo",
+      image: socialImages.collection,
+    }),
   component: Acervo,
 });
 
