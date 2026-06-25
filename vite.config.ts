@@ -5,18 +5,16 @@ import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
-const serverExternals = [
-  "firebase-admin",
-  "firebase-admin/app",
-  "firebase-admin/auth",
-  "firebase-admin/firestore",
-  "@google-cloud/firestore",
-  "google-gax",
-];
-
 export default defineConfig({
   ssr: {
-    external: serverExternals,
+    noExternal: [
+      "firebase-admin",
+      "firebase-admin/app",
+      "firebase-admin/auth",
+      "firebase-admin/firestore",
+      "@google-cloud/firestore",
+      "google-gax",
+    ],
   },
   plugins: [
     tsConfigPaths(),
@@ -26,10 +24,10 @@ export default defineConfig({
     }),
     nitro({
       rollupConfig: {
-        external: serverExternals,
+        external: [],
       },
       rolldownConfig: {
-        external: serverExternals,
+        external: [],
       },
     }),
     react(),

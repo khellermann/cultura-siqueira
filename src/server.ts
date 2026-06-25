@@ -1,7 +1,9 @@
 import "./lib/error-capture";
 
 import type { HandleUploadBody } from "@vercel/blob/client";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { resolve } from "node:path";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
@@ -17,6 +19,35 @@ if (!("require" in globalThis)) {
     value: createRequire(import.meta.url),
     configurable: true,
   });
+}
+
+function unquoteEnvValue(value: string) {
+  const trimmedValue = value.trim();
+  const quote = trimmedValue[0];
+  if ((quote === `"` || quote === `'`) && trimmedValue.endsWith(quote)) {
+    return trimmedValue.slice(1, -1);
+  }
+
+  return trimmedValue;
+}
+
+function loadLocalServerEnv() {
+  const envPath = resolve(process.cwd(), ".env.local");
+  if (!existsSync(envPath)) return;
+
+  const envFile = readFileSync(envPath, "utf8");
+  for (const line of envFile.split(/\r?\n/)) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine || trimmedLine.startsWith("#")) continue;
+
+    const separatorIndex = trimmedLine.indexOf("=");
+    if (separatorIndex === -1) continue;
+
+    const key = trimmedLine.slice(0, separatorIndex).trim();
+    if (!key || process.env[key]) continue;
+
+    process.env[key] = unquoteEnvValue(trimmedLine.slice(separatorIndex + 1));
+  }
 }
 
 type ServerEntry = {
@@ -92,6 +123,8 @@ async function getServerEntry(): Promise<ServerEntry> {
 
 async function handleBlobUpload(request: Request) {
   try {
+    loadLocalServerEnv();
+
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
       throw new Error(
         "BLOB_READ_WRITE_TOKEN nao configurado. Vincule um Vercel Blob Store ao projeto ou adicione o token nas variaveis de ambiente.",
