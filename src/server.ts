@@ -126,7 +126,11 @@ async function handleBlobUpload(request: Request) {
           allowedContentTypes:
             payload.kind === "event-image"
               ? ["image/jpeg", "image/png", "image/webp", "image/gif"]
-              : ["application/pdf"],
+              : [
+                  "application/pdf",
+                  "application/msword",
+                  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ],
           maximumSizeInBytes: payload.kind === "event-image" ? 5 * 1024 * 1024 : 10 * 1024 * 1024,
           addRandomSuffix: true,
           cacheControlMaxAge: 31_536_000,

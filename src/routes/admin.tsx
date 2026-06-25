@@ -240,13 +240,23 @@ function validateFlyer(file: File) {
   return "";
 }
 
-function validatePdf(file: File) {
-  if (file.type !== "application/pdf") {
-    return "O documento precisa ser um PDF.";
+const allowedPublicDocumentTypes = new Set([
+  "application/msword",
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
+
+function validatePublicDocument(file: File) {
+  const hasAllowedExtension = /\.(docx?|pdf)$/i.test(file.name);
+  const hasAllowedMimeType =
+    !file.type || file.type === "application/octet-stream" || allowedPublicDocumentTypes.has(file.type);
+
+  if (!hasAllowedExtension || !hasAllowedMimeType) {
+    return "O documento precisa ser PDF, DOC ou DOCX.";
   }
 
   if (file.size > 10 * 1024 * 1024) {
-    return "O PDF precisa ter ate 10 MB.";
+    return "Cada documento precisa ter ate 10 MB.";
   }
 
   return "";
@@ -673,7 +683,7 @@ function handleFlyerChange(file: File | null) {
       return;
     }
 
-    const validationMessage = selectedFiles.map(validatePdf).find(Boolean);
+    const validationMessage = selectedFiles.map(validatePublicDocument).find(Boolean);
     if (validationMessage) {
       setOpportunityDocuments([]);
       setMessage(validationMessage);
@@ -890,7 +900,7 @@ function handleFlyerChange(file: File | null) {
       opportunityForm.documents.length === 0 &&
       opportunityDocuments.length === 0
     ) {
-      setMessage("Envie pelo menos um anexo em PDF para o edital.");
+      setMessage("Envie pelo menos um anexo em PDF, DOC ou DOCX para o edital.");
       return;
     }
 
@@ -1738,7 +1748,7 @@ function handleFlyerChange(file: File | null) {
                     </div>
                     <p className="mt-4 max-w-3xl text-sm leading-relaxed text-[#5F5D70]">
                       {panel === "edicts"
-                        ? "Cadastre editais, anexe o PDF, configure o formulario e divulgue o link de inscricao."
+                        ? "Cadastre editais, anexe PDF, DOC ou DOCX, configure o formulario e divulgue o link de inscricao."
                         : "Cadastre oficinas, cursos ou eventos com inscricao aberta. Cada atividade ganha um link direto para divulgacao."}
                     </p>
 
@@ -1803,15 +1813,15 @@ function handleFlyerChange(file: File | null) {
 
                       {panel === "edicts" && (
                         <div className="grid gap-3 text-sm font-semibold text-[#414296]">
-                          <span>Anexos do edital em PDF</span>
+                          <span>Anexos do edital em PDF, DOC ou DOCX</span>
                           <label className="flex cursor-pointer flex-col items-center justify-center gap-3 border-2 border-dashed border-[#D8D8E8] bg-[#F8F8FB] px-5 py-8 text-center transition hover:border-[#EF1B2D]">
                             <FileText className="h-6 w-6 text-[#EF1B2D]" />
                             <span className="text-xs uppercase tracking-[0.18em] text-[#414296]">
-                              Selecionar PDFs
+                              Selecionar documentos
                             </span>
                             <input
                               type="file"
-                              accept="application/pdf"
+                              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                               multiple
                               onChange={(event) =>
                                 handleOpportunityDocumentsChange(event.target.files)
