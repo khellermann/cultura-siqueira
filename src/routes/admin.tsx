@@ -101,10 +101,7 @@ import {
   type RegistrationOpportunityDocument,
   type RegistrationOpportunityType,
 } from "@/lib/registrations";
-import {
-  visitRequestsCollection,
-  type VisitRequest,
-} from "@/lib/visitRequests";
+import { visitRequestsCollection, type VisitRequest } from "@/lib/visitRequests";
 
 type AdminAccess = "loading" | "allowed" | "denied" | "signed-out";
 type AdminPanel =
@@ -225,6 +222,14 @@ function getFirebaseErrorMessage(error: unknown) {
     return `Sem permissao para salvar. Confira se o e-mail logado esta autorizado como administrador.${detail}`;
   }
 
+  if (
+    message.includes("Vercel Blob") ||
+    message.includes("client token") ||
+    message.includes("BLOB_READ_WRITE_TOKEN")
+  ) {
+    return `Nao foi possivel enviar o arquivo. Configure o Vercel Blob no projeto e as variaveis BLOB_READ_WRITE_TOKEN e FIREBASE_SERVICE_ACCOUNT_JSON.${detail}`;
+  }
+
   return `Nao foi possivel cadastrar o evento. Confira a conexao e tente novamente.${detail}`;
 }
 
@@ -249,7 +254,9 @@ const allowedPublicDocumentTypes = new Set([
 function validatePublicDocument(file: File) {
   const hasAllowedExtension = /\.(docx?|pdf)$/i.test(file.name);
   const hasAllowedMimeType =
-    !file.type || file.type === "application/octet-stream" || allowedPublicDocumentTypes.has(file.type);
+    !file.type ||
+    file.type === "application/octet-stream" ||
+    allowedPublicDocumentTypes.has(file.type);
 
   if (!hasAllowedExtension || !hasAllowedMimeType) {
     return "O documento precisa ser PDF, DOC ou DOCX.";
@@ -293,12 +300,7 @@ function timeToMinutes(time: string) {
   return hours * 60 + minutes;
 }
 
-function timeRangesOverlap(
-  startA: string,
-  endA: string,
-  startB: string,
-  endB: string,
-) {
+function timeRangesOverlap(startA: string, endA: string, startB: string, endB: string) {
   return timeToMinutes(startA) < timeToMinutes(endB) && timeToMinutes(startB) < timeToMinutes(endA);
 }
 
@@ -466,7 +468,9 @@ function Admin() {
       );
       setMenuVisibility(
         navigationSnapshot.exists()
-          ? mergeMenuVisibility(navigationSnapshot.data().items as Record<string, unknown> | undefined)
+          ? mergeMenuVisibility(
+              navigationSnapshot.data().items as Record<string, unknown> | undefined,
+            )
           : defaultMenuVisibility,
       );
     } catch (error) {
@@ -518,16 +522,13 @@ function Admin() {
     () => [...events].sort((a, b) => a.date.localeCompare(b.date)),
     [events],
   );
-  const upcomingEvents = useMemo(
-    () => {
-      const today = formatDateKey(new Date());
-      const rangeEnd = formatDateKey(addCalendarDays(new Date(), 180));
-      return expandEventOccurrences(events, today, rangeEnd).sort((a, b) =>
-        a.date.localeCompare(b.date),
-      );
-    },
-    [events],
-  );
+  const upcomingEvents = useMemo(() => {
+    const today = formatDateKey(new Date());
+    const rangeEnd = formatDateKey(addCalendarDays(new Date(), 180));
+    return expandEventOccurrences(events, today, rangeEnd).sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
+  }, [events]);
   const publicOrigin = typeof window === "undefined" ? "" : window.location.origin;
   const edicts = useMemo(
     () => opportunities.filter((opportunity) => opportunity.type === "edital"),
@@ -565,7 +566,9 @@ function Admin() {
       await signInWithPopup(auth, provider);
     } catch (error) {
       console.error(error);
-      setMessage("Nao foi possivel abrir o login do Google. Confira o provedor Google no Firebase.");
+      setMessage(
+        "Nao foi possivel abrir o login do Google. Confira o provedor Google no Firebase.",
+      );
     }
   }
 
@@ -635,14 +638,19 @@ function Admin() {
           return false;
         }
 
-        return timeRangesOverlap(occurrence.startTime, occurrence.endTime, event.startTime, event.endTime);
+        return timeRangesOverlap(
+          occurrence.startTime,
+          occurrence.endTime,
+          event.startTime,
+          event.endTime,
+        );
       });
 
       return Boolean(formOccurrence);
     });
   }
 
-function handleFlyerChange(file: File | null) {
+  function handleFlyerChange(file: File | null) {
     if (!file) {
       setFlyer(null);
       return;
@@ -840,7 +848,9 @@ function handleFlyerChange(file: File | null) {
       setForm(initialEventForm);
       setEditingEventId("");
       setFlyer(null);
-      setMessage(editingEventId ? "Evento atualizado com sucesso." : "Evento cadastrado com sucesso.");
+      setMessage(
+        editingEventId ? "Evento atualizado com sucesso." : "Evento cadastrado com sucesso.",
+      );
       await loadAdminData();
     } catch (error) {
       console.error(error);
@@ -904,11 +914,6 @@ function handleFlyerChange(file: File | null) {
       return;
     }
 
-    if (opportunityForm.type === "edital" && opportunityForm.fields.length === 0) {
-      setMessage("Selecione pelo menos um campo para o formulario do edital.");
-      return;
-    }
-
     setSaving(true);
     setMessage("");
 
@@ -945,9 +950,12 @@ function handleFlyerChange(file: File | null) {
         documentPath: mainDocument?.path ?? "",
         documentUrl: mainDocument?.url ?? "",
         endDate: opportunityForm.endDate,
-        fields: opportunityForm.fields.length
-          ? opportunityForm.fields
-          : getDefaultRegistrationFields(opportunityForm.type),
+        fields:
+          opportunityForm.type === "edital"
+            ? opportunityForm.fields
+            : opportunityForm.fields.length
+              ? opportunityForm.fields
+              : getDefaultRegistrationFields(opportunityForm.type),
         registrationUrl: opportunityForm.registrationUrl.trim(),
         startDate: opportunityForm.startDate,
         title,
@@ -1077,10 +1085,9 @@ function handleFlyerChange(file: File | null) {
     ]);
 
     if (format === "csv") {
-      const csvRows = [
-        ["Comprovante", ...fields.map((field) => field.label)],
-        ...rows,
-      ].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(";"));
+      const csvRows = [["Comprovante", ...fields.map((field) => field.label)], ...rows].map((row) =>
+        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(";"),
+      );
       downloadTextFile(`inscricoes-${title}.csv`, csvRows.join("\n"), "text/csv;charset=utf-8");
       return;
     }
@@ -1232,29 +1239,32 @@ function handleFlyerChange(file: File | null) {
               </div>
 
               <nav className="mt-4 grid gap-2">
-                {[...adminPanels, ...(canManageAdmins ? [{ id: "admins", label: "Administradores", icon: UserPlus } as const] : [])].map(
-                  (item) => {
-                    const Icon = item.icon;
-                    const active = panel === item.id;
+                {[
+                  ...adminPanels,
+                  ...(canManageAdmins
+                    ? [{ id: "admins", label: "Administradores", icon: UserPlus } as const]
+                    : []),
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const active = panel === item.id;
 
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setPanel(item.id)}
-                        className={[
-                          "flex items-center gap-3 border-2 px-4 py-3 text-left text-sm font-semibold transition",
-                          active
-                            ? "border-[#414296] bg-[#414296] text-white"
-                            : "border-transparent text-[#5F5D70] hover:border-[#E2E2EA] hover:text-[#414296]",
-                        ].join(" ")}
-                      >
-                        <Icon className="h-4 w-4" />
-                        {item.label}
-                      </button>
-                    );
-                  },
-                )}
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setPanel(item.id)}
+                      className={[
+                        "flex items-center gap-3 border-2 px-4 py-3 text-left text-sm font-semibold transition",
+                        active
+                          ? "border-[#414296] bg-[#414296] text-white"
+                          : "border-transparent text-[#5F5D70] hover:border-[#E2E2EA] hover:text-[#414296]",
+                      ].join(" ")}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.label}
+                    </button>
+                  );
+                })}
               </nav>
             </aside>
 
@@ -1344,7 +1354,9 @@ function handleFlyerChange(file: File | null) {
 
               {panel === "events" && (
                 <section className="grid gap-8">
-                  {isEditingEvent && <div className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm" />}
+                  {isEditingEvent && (
+                    <div className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm" />
+                  )}
                   <section
                     className={[
                       "border-2 border-[#E2E2EA] bg-white p-6 md:p-8",
@@ -1449,7 +1461,9 @@ function handleFlyerChange(file: File | null) {
                             value={form.date}
                             onChange={(event) => {
                               const date = event.target.value;
-                              const weekday = date ? new Date(`${date}T00:00:00`).getDay() : undefined;
+                              const weekday = date
+                                ? new Date(`${date}T00:00:00`).getDay()
+                                : undefined;
                               setForm((current) => ({
                                 ...current,
                                 date,
@@ -1485,7 +1499,10 @@ function handleFlyerChange(file: File | null) {
                             type="number"
                             value={form.periodAmount}
                             onChange={(event) =>
-                              setForm((current) => ({ ...current, periodAmount: event.target.value }))
+                              setForm((current) => ({
+                                ...current,
+                                periodAmount: event.target.value,
+                              }))
                             }
                             className="border-2 border-[#E2E2EA] px-4 py-3 font-normal text-[#24223A] outline-none transition focus:border-[#0B86D8]"
                           />
@@ -1680,7 +1697,10 @@ function handleFlyerChange(file: File | null) {
                             placeholder="https://..."
                             value={form.registrationUrl}
                             onChange={(event) =>
-                              setForm((current) => ({ ...current, registrationUrl: event.target.value }))
+                              setForm((current) => ({
+                                ...current,
+                                registrationUrl: event.target.value,
+                              }))
                             }
                             className="border-2 border-[#E2E2EA] px-4 py-3 font-normal text-[#24223A] outline-none transition focus:border-[#0B86D8] disabled:bg-[#F1F1F6] disabled:text-[#8A8898]"
                           />
@@ -1716,8 +1736,16 @@ function handleFlyerChange(file: File | null) {
                           disabled={saving}
                           className="inline-flex w-fit items-center justify-center gap-2 bg-[#414296] px-6 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-[#00A859] disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          {isEditingEvent ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                          {saving ? "Salvando..." : isEditingEvent ? "Salvar alteracoes" : "Cadastrar evento"}
+                          {isEditingEvent ? (
+                            <Pencil className="h-4 w-4" />
+                          ) : (
+                            <Plus className="h-4 w-4" />
+                          )}
+                          {saving
+                            ? "Salvando..."
+                            : isEditingEvent
+                              ? "Salvar alteracoes"
+                              : "Cadastrar evento"}
                         </button>
                         {isEditingEvent && (
                           <button
@@ -1733,7 +1761,11 @@ function handleFlyerChange(file: File | null) {
                     </form>
                   </section>
 
-                  <EventsList events={sortedEvents} onDelete={handleDeleteEvent} onEdit={handleEditEvent} />
+                  <EventsList
+                    events={sortedEvents}
+                    onDelete={handleDeleteEvent}
+                    onEdit={handleEditEvent}
+                  />
                 </section>
               )}
 
@@ -1765,7 +1797,11 @@ function handleFlyerChange(file: File | null) {
                               }))
                             }
                             className="border-2 border-[#E2E2EA] px-4 py-3 text-[#24223A] outline-none focus:border-[#0B86D8]"
-                            placeholder={panel === "edicts" ? "Ex.: Edital de fomento cultural" : "Ex.: Oficina de desenho"}
+                            placeholder={
+                              panel === "edicts"
+                                ? "Ex.: Edital de fomento cultural"
+                                : "Ex.: Oficina de desenho"
+                            }
                             required
                           />
                         </label>
@@ -1786,12 +1822,14 @@ function handleFlyerChange(file: File | null) {
                             className="border-2 border-[#E2E2EA] px-4 py-3 text-[#24223A] outline-none focus:border-[#0B86D8]"
                           >
                             {registrationOpportunityTypes
-                              .filter((type) => (panel === "edicts" ? type === "edital" : type !== "edital"))
+                              .filter((type) =>
+                                panel === "edicts" ? type === "edital" : type !== "edital",
+                              )
                               .map((type) => (
-                              <option key={type} value={type}>
-                                {formatOpportunityType(type)}
-                              </option>
-                            ))}
+                                <option key={type} value={type}>
+                                  {formatOpportunityType(type)}
+                                </option>
+                              ))}
                           </select>
                         </label>
                       </div>
@@ -1839,7 +1877,8 @@ function handleFlyerChange(file: File | null) {
                                   key={`${documentFile.name}-${documentFile.size}`}
                                   className="text-xs font-normal text-[#5F5D70]"
                                 >
-                                  {documentFile.name} ({(documentFile.size / 1024 / 1024).toFixed(2)} MB)
+                                  {documentFile.name} (
+                                  {(documentFile.size / 1024 / 1024).toFixed(2)} MB)
                                 </p>
                               ))}
                             </div>
@@ -2039,7 +2078,11 @@ function handleFlyerChange(file: File | null) {
                           disabled={saving}
                           className="inline-flex items-center justify-center gap-2 bg-[#EF1B2D] px-6 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-[#414296] disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          {editingOpportunityId ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                          {editingOpportunityId ? (
+                            <Pencil className="h-4 w-4" />
+                          ) : (
+                            <Plus className="h-4 w-4" />
+                          )}
                           {saving
                             ? "Salvando..."
                             : editingOpportunityId
@@ -2109,16 +2152,18 @@ function handleFlyerChange(file: File | null) {
                                   )}
                                   {getOpportunityDocuments(opportunity).length > 0 && (
                                     <div className="mt-3 flex flex-wrap gap-3">
-                                      {getOpportunityDocuments(opportunity).map((documentItem, index) => (
-                                        <a
-                                          key={documentItem.url}
-                                          href={documentItem.url}
-                                          className="inline-flex items-center gap-2 text-sm font-semibold text-[#EF1B2D] underline"
-                                        >
-                                          <FileText className="h-4 w-4" />
-                                          {documentItem.name || `Anexo ${index + 1}`}
-                                        </a>
-                                      ))}
+                                      {getOpportunityDocuments(opportunity).map(
+                                        (documentItem, index) => (
+                                          <a
+                                            key={documentItem.url}
+                                            href={documentItem.url}
+                                            className="inline-flex items-center gap-2 text-sm font-semibold text-[#EF1B2D] underline"
+                                          >
+                                            <FileText className="h-4 w-4" />
+                                            {documentItem.name || `Anexo ${index + 1}`}
+                                          </a>
+                                        ),
+                                      )}
                                     </div>
                                   )}
                                   <a
@@ -2264,11 +2309,13 @@ function handleFlyerChange(file: File | null) {
                               <thead>
                                 <tr className="bg-[#F8F8FB] text-xs uppercase tracking-[0.14em] text-[#414296]">
                                   <th className="border-2 border-[#E2E2EA] p-3">Comprovante</th>
-                                  {getSubmissionFields(selectedSubmissionOpportunity).map((field) => (
-                                    <th key={field.key} className="border-2 border-[#E2E2EA] p-3">
-                                      {field.label}
-                                    </th>
-                                  ))}
+                                  {getSubmissionFields(selectedSubmissionOpportunity).map(
+                                    (field) => (
+                                      <th key={field.key} className="border-2 border-[#E2E2EA] p-3">
+                                        {field.label}
+                                      </th>
+                                    ),
+                                  )}
                                   <th className="border-2 border-[#E2E2EA] p-3">Acoes</th>
                                 </tr>
                               </thead>
@@ -2276,7 +2323,10 @@ function handleFlyerChange(file: File | null) {
                                 {selectedSubmissionEntries.length === 0 && (
                                   <tr>
                                     <td
-                                      colSpan={getSubmissionFields(selectedSubmissionOpportunity).length + 2}
+                                      colSpan={
+                                        getSubmissionFields(selectedSubmissionOpportunity).length +
+                                        2
+                                      }
                                       className="border-2 border-[#E2E2EA] p-4 text-[#5F5D70]"
                                     >
                                       Nenhuma inscricao para este cadastro.
@@ -2288,11 +2338,16 @@ function handleFlyerChange(file: File | null) {
                                     <td className="border-2 border-[#E2E2EA] p-3 font-semibold text-[#414296]">
                                       {entry.id}
                                     </td>
-                                    {getSubmissionFields(selectedSubmissionOpportunity).map((field) => (
-                                      <td key={field.key} className="border-2 border-[#E2E2EA] p-3">
-                                        {getEntryValue(entry, field.key) || "-"}
-                                      </td>
-                                    ))}
+                                    {getSubmissionFields(selectedSubmissionOpportunity).map(
+                                      (field) => (
+                                        <td
+                                          key={field.key}
+                                          className="border-2 border-[#E2E2EA] p-3"
+                                        >
+                                          {getEntryValue(entry, field.key) || "-"}
+                                        </td>
+                                      ),
+                                    )}
                                     <td className="border-2 border-[#E2E2EA] p-3">
                                       <button
                                         type="button"
@@ -2369,10 +2424,7 @@ function handleFlyerChange(file: File | null) {
                           <VisitRequestField label="Responsável" value={request.responsibleName} />
                           <VisitRequestField label="Telefone" value={request.phone} />
                           <VisitRequestField label="E-mail" value={request.email || "-"} />
-                          <VisitRequestField
-                            label="Visitantes"
-                            value={request.visitorsCount}
-                          />
+                          <VisitRequestField label="Visitantes" value={request.visitorsCount} />
                           <VisitRequestField label="Faixa etária/série" value={request.ageGroup} />
                           <VisitRequestField label="Status" value={request.status ?? "novo"} />
                         </div>
@@ -2565,7 +2617,10 @@ function handleFlyerChange(file: File | null) {
                     <UserPlus className="h-6 w-6 text-[#00A859]" />
                     Administradores
                   </h2>
-                  <form onSubmit={handleAddAdmin} className="mt-6 grid gap-3 md:grid-cols-[1fr_auto]">
+                  <form
+                    onSubmit={handleAddAdmin}
+                    className="mt-6 grid gap-3 md:grid-cols-[1fr_auto]"
+                  >
                     <input
                       type="email"
                       placeholder="email@exemplo.com"
@@ -2596,8 +2651,6 @@ function handleFlyerChange(file: File | null) {
           </div>
         )}
       </main>
-
-
     </div>
   );
 }
@@ -2920,72 +2973,72 @@ function AdminCalendar({ events }: { events: CulturalEvent[] }) {
         <p className="text-sm text-[#5F5D70]">Nenhum evento futuro cadastrado.</p>
       ) : (
         <div className="w-full overflow-hidden">
-            <div className="grid grid-cols-[repeat(7,minmax(0,1fr))] border-l-2 border-t-2 border-[#E2E2EA]">
-              {calendarWeekDays.map((day) => (
-                <div
-                  key={day}
-                  className="border-b-2 border-r-2 border-[#E2E2EA] bg-[#F8F8FB] px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-[#414296]"
+          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))] border-l-2 border-t-2 border-[#E2E2EA]">
+            {calendarWeekDays.map((day) => (
+              <div
+                key={day}
+                className="border-b-2 border-r-2 border-[#E2E2EA] bg-[#F8F8FB] px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-[#414296]"
+              >
+                {day}
+              </div>
+            ))}
+            {cells.map((date) => {
+              const dateKey = formatDateKey(date);
+              const dayEvents = eventsByDate[dateKey] ?? [];
+              const isCurrentMonth = date.getMonth() === monthDate.getMonth();
+              const isToday = dateKey === todayKey;
+
+              return (
+                <article
+                  key={dateKey}
+                  className={[
+                    "min-h-32 min-w-0 border-b-2 border-r-2 border-[#E2E2EA] p-2 transition sm:p-3",
+                    isCurrentMonth ? "bg-white" : "bg-[#F8F8FB] text-[#8A8898]",
+                    dayEvents.length > 0 ? "hover:bg-[#F8FBFF]" : "",
+                  ].join(" ")}
                 >
-                  {day}
-                </div>
-              ))}
-              {cells.map((date) => {
-                const dateKey = formatDateKey(date);
-                const dayEvents = eventsByDate[dateKey] ?? [];
-                const isCurrentMonth = date.getMonth() === monthDate.getMonth();
-                const isToday = dateKey === todayKey;
-
-                return (
-                  <article
-                    key={dateKey}
-                    className={[
-                      "min-h-32 min-w-0 border-b-2 border-r-2 border-[#E2E2EA] p-2 transition sm:p-3",
-                      isCurrentMonth ? "bg-white" : "bg-[#F8F8FB] text-[#8A8898]",
-                      dayEvents.length > 0 ? "hover:bg-[#F8FBFF]" : "",
-                    ].join(" ")}
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <span
-                        className={[
-                          "inline-flex h-7 w-7 items-center justify-center text-sm font-semibold",
-                          isToday ? "bg-[#414296] text-white" : "text-[#24223A]",
-                          !isCurrentMonth && !isToday ? "text-[#8A8898]" : "",
-                        ].join(" ")}
-                      >
-                        {date.getDate()}
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span
+                      className={[
+                        "inline-flex h-7 w-7 items-center justify-center text-sm font-semibold",
+                        isToday ? "bg-[#414296] text-white" : "text-[#24223A]",
+                        !isCurrentMonth && !isToday ? "text-[#8A8898]" : "",
+                      ].join(" ")}
+                    >
+                      {date.getDate()}
+                    </span>
+                    {dayEvents.length > 0 && (
+                      <span className="rounded-full bg-[#0B86D8] px-2 py-0.5 text-[0.65rem] font-semibold text-white">
+                        {dayEvents.length}
                       </span>
-                      {dayEvents.length > 0 && (
-                        <span className="rounded-full bg-[#0B86D8] px-2 py-0.5 text-[0.65rem] font-semibold text-white">
-                          {dayEvents.length}
-                        </span>
-                      )}
-                    </div>
+                    )}
+                  </div>
 
-                    <div className="grid min-w-0 gap-1.5">
-                      {dayEvents.slice(0, 3).map((event) => (
-                        <div
-                          key={event.occurrenceId ?? event.id}
-                          className="min-w-0 overflow-hidden border-l-4 border-[#00A859] bg-[#F8FBFF] px-2 py-1.5"
-                          title={`${event.name} - ${formatEventSchedule(event)}`}
-                        >
-                          <p className="truncate text-xs font-semibold text-[#24223A]">
-                            {event.name}
-                          </p>
-                          <p className="truncate text-[0.68rem] text-[#5F5D70]">
-                            {formatEventSchedule(event)}
-                          </p>
-                        </div>
-                      ))}
-                      {dayEvents.length > 3 && (
-                        <p className="truncate text-[0.68rem] font-semibold text-[#414296]">
-                          +{dayEvents.length - 3} evento{dayEvents.length - 3 === 1 ? "" : "s"}
+                  <div className="grid min-w-0 gap-1.5">
+                    {dayEvents.slice(0, 3).map((event) => (
+                      <div
+                        key={event.occurrenceId ?? event.id}
+                        className="min-w-0 overflow-hidden border-l-4 border-[#00A859] bg-[#F8FBFF] px-2 py-1.5"
+                        title={`${event.name} - ${formatEventSchedule(event)}`}
+                      >
+                        <p className="truncate text-xs font-semibold text-[#24223A]">
+                          {event.name}
                         </p>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+                        <p className="truncate text-[0.68rem] text-[#5F5D70]">
+                          {formatEventSchedule(event)}
+                        </p>
+                      </div>
+                    ))}
+                    {dayEvents.length > 3 && (
+                      <p className="truncate text-[0.68rem] font-semibold text-[#414296]">
+                        +{dayEvents.length - 3} evento{dayEvents.length - 3 === 1 ? "" : "s"}
+                      </p>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -2995,7 +3048,10 @@ function AdminCalendar({ events }: { events: CulturalEvent[] }) {
             .filter((event) => event.date?.startsWith(monthKey))
             .slice(0, 6)
             .map((event) => (
-              <article key={event.occurrenceId ?? event.id} className="border-2 border-[#E2E2EA] p-4">
+              <article
+                key={event.occurrenceId ?? event.id}
+                className="border-2 border-[#E2E2EA] p-4"
+              >
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#0B86D8]">
                   {event.date}
                 </p>
@@ -3013,7 +3069,7 @@ function AdminCalendar({ events }: { events: CulturalEvent[] }) {
           {visibleMonthEvents === 0 && (
             <p className="text-sm text-[#5F5D70]">
               Nenhum evento neste mes. Use as setas para navegar por outros meses.
-              </p>
+            </p>
           )}
         </div>
       )}

@@ -41,7 +41,10 @@ function Editais() {
 
       try {
         const snapshot = await getDocs(
-          query(collection(firebaseDb, registrationOpportunitiesCollection), orderBy("title", "asc")),
+          query(
+            collection(firebaseDb, registrationOpportunitiesCollection),
+            orderBy("title", "asc"),
+          ),
         );
         setEdicts(
           snapshot.docs
@@ -101,59 +104,77 @@ function Editais() {
             </p>
           )}
           <div className="grid gap-6 md:grid-cols-2">
-            {edicts.map((edict) => (
-              <article key={edict.id} className="overflow-hidden border-2 border-[#E2E2EA] bg-white">
-                {edict.bannerUrl && (
-                  <img
-                    src={edict.bannerUrl}
-                    alt={`Banner de ${edict.title}`}
-                    className="h-56 w-full object-cover"
-                  />
-                )}
-                <div className="p-6">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#EF1B2D]">
-                    Edital aberto
-                  </p>
-                  <h2 className="mt-3 font-sans text-3xl font-black text-[#414296]">
-                    {edict.title}
-                  </h2>
-                  {edict.description && (
-                    <p className="mt-4 text-sm leading-relaxed text-[#5F5D70]">
-                      {edict.description}
-                    </p>
+            {edicts.map((edict) => {
+              const hasRegistrationForm = Boolean(edict.fields?.length);
+              const registrationUrl = edict.registrationUrl?.trim();
+
+              return (
+                <article
+                  key={edict.id}
+                  className="overflow-hidden border-2 border-[#E2E2EA] bg-white"
+                >
+                  {edict.bannerUrl && (
+                    <img
+                      src={edict.bannerUrl}
+                      alt={`Banner de ${edict.title}`}
+                      className="h-56 w-full object-cover"
+                    />
                   )}
-                  <div className="mt-6 grid gap-4">
-                    {getOpportunityDocuments(edict).length > 0 && (
-                      <div className="grid gap-2">
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#414296]">
-                          Anexos do edital
-                        </p>
-                        <div className="flex flex-wrap gap-3">
-                          {getOpportunityDocuments(edict).map((documentItem, index) => (
-                            <a
-                              key={documentItem.url}
-                              href={documentItem.url}
-                              className="inline-flex items-center gap-2 border-2 border-[#414296] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#414296] transition hover:bg-[#414296] hover:text-white"
-                            >
-                              <FileText className="h-4 w-4" />
-                              {documentItem.name || `Anexo ${index + 1}`}
-                            </a>
-                          ))}
-                        </div>
-                      </div>
+                  <div className="p-6">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#EF1B2D]">
+                      Edital aberto
+                    </p>
+                    <h2 className="mt-3 font-sans text-3xl font-black text-[#414296]">
+                      {edict.title}
+                    </h2>
+                    {edict.description && (
+                      <p className="mt-4 text-sm leading-relaxed text-[#5F5D70]">
+                        {edict.description}
+                      </p>
                     )}
-                    <Link
-                      to="/inscricoes"
-                      search={{ atividade: edict.id }}
-                      className="inline-flex items-center gap-2 bg-[#EF1B2D] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[#414296]"
-                    >
-                      <ClipboardList className="h-4 w-4" />
-                      Inscrever-se
-                    </Link>
+                    <div className="mt-6 grid gap-4">
+                      {getOpportunityDocuments(edict).length > 0 && (
+                        <div className="grid gap-2">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#414296]">
+                            Anexos do edital
+                          </p>
+                          <div className="flex flex-wrap gap-3">
+                            {getOpportunityDocuments(edict).map((documentItem, index) => (
+                              <a
+                                key={documentItem.url}
+                                href={documentItem.url}
+                                className="inline-flex items-center gap-2 border-2 border-[#414296] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#414296] transition hover:bg-[#414296] hover:text-white"
+                              >
+                                <FileText className="h-4 w-4" />
+                                {documentItem.name || `Anexo ${index + 1}`}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {registrationUrl ? (
+                        <a
+                          href={registrationUrl}
+                          className="inline-flex items-center gap-2 bg-[#EF1B2D] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[#414296]"
+                        >
+                          <ClipboardList className="h-4 w-4" />
+                          Inscrever-se
+                        </a>
+                      ) : hasRegistrationForm ? (
+                        <Link
+                          to="/inscricoes"
+                          search={{ atividade: edict.id }}
+                          className="inline-flex items-center gap-2 bg-[#EF1B2D] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[#414296]"
+                        >
+                          <ClipboardList className="h-4 w-4" />
+                          Inscrever-se
+                        </Link>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         </section>
       </main>

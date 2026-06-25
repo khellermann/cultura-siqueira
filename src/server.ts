@@ -92,6 +92,12 @@ async function getServerEntry(): Promise<ServerEntry> {
 
 async function handleBlobUpload(request: Request) {
   try {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      throw new Error(
+        "BLOB_READ_WRITE_TOKEN nao configurado. Vincule um Vercel Blob Store ao projeto ou adicione o token nas variaveis de ambiente.",
+      );
+    }
+
     const [{ handleUpload }, { verifyFirebaseAdminToken }] = await Promise.all([
       import("@vercel/blob/client"),
       import("./lib/firebaseAdmin.server"),
