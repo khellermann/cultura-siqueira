@@ -1,5 +1,6 @@
 import type { CulturalEvent } from "@/lib/events";
 import type { MuseumGalleryItem } from "@/lib/museumCatalog";
+import type { RegistrationOpportunity } from "@/lib/registrations";
 
 export const siteUrl =
   (import.meta.env.VITE_PUBLIC_SITE_URL as string | undefined)?.replace(/\/+$/, "") ??
@@ -93,6 +94,15 @@ export function getEventSlug(event: Pick<CulturalEvent, "id" | "name">) {
 }
 
 export function getEventIdFromSlug(slug: string) {
+  const separatorIndex = slug.lastIndexOf("--");
+  return separatorIndex >= 0 ? slug.slice(separatorIndex + 2) : slug;
+}
+
+export function getEdictSlug(edict: Pick<RegistrationOpportunity, "id" | "title">) {
+  return `${slugify(edict.title) || "edital"}--${edict.id}`;
+}
+
+export function getEdictIdFromSlug(slug: string) {
   const separatorIndex = slug.lastIndexOf("--");
   return separatorIndex >= 0 ? slug.slice(separatorIndex + 2) : slug;
 }

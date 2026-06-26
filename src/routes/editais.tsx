@@ -1,17 +1,16 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
-import { ClipboardList, FileText } from "lucide-react";
+import { ArrowRight, ClipboardList, FileText } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { SiteFooter, SiteHeader } from "@/components/SiteHeader";
 import { firebaseDb, isFirebaseConfigured } from "@/lib/firebase";
 import {
-  getOpportunityDocuments,
   isRegistrationOpportunityOpen,
   registrationOpportunitiesCollection,
   type RegistrationOpportunity,
 } from "@/lib/registrations";
-import { seoHead, socialImages } from "@/lib/seo";
+import { getEdictSlug, seoHead, socialImages } from "@/lib/seo";
 
 export const Route = createFileRoute("/editais")({
   head: () =>
@@ -101,6 +100,7 @@ function Editais() {
           )}
           <div className="grid gap-6 md:grid-cols-2">
             {edicts.map((edict) => {
+              const detailPath = `/editais/${getEdictSlug(edict)}`;
               const isOpen = isRegistrationOpportunityOpen(edict);
               const hasRegistrationForm = isOpen && Boolean(edict.fields?.length);
               const registrationUrl = isOpen ? edict.registrationUrl?.trim() : "";
@@ -130,29 +130,19 @@ function Editais() {
                         {edict.description}
                       </p>
                     )}
-                    <div className="mt-6 grid gap-4">
-                      {getOpportunityDocuments(edict).length > 0 && (
-                        <div className="grid gap-2">
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#414296]">
-                            Anexos do edital
-                          </p>
-                          <div className="flex flex-wrap gap-3">
-                            {getOpportunityDocuments(edict).map((documentItem, index) => (
-                              <a
-                                key={documentItem.url}
-                                href={documentItem.url}
-                                className="inline-flex items-center gap-2 border-2 border-[#414296] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#414296] transition hover:bg-[#414296] hover:text-white"
-                              >
-                                <FileText className="h-4 w-4" />
-                                {documentItem.name || `Anexo ${index + 1}`}
-                              </a>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                    <div className="mt-6 flex flex-wrap gap-3">
+                      <a
+                        href={detailPath}
+                        className="inline-flex items-center gap-2 bg-[#414296] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[#0B86D8]"
+                      >
+                        Ver mais
+                        <ArrowRight className="h-4 w-4" />
+                      </a>
                       {registrationUrl ? (
                         <a
                           href={registrationUrl}
+                          target="_blank"
+                          rel="noreferrer"
                           className="inline-flex items-center gap-2 bg-[#EF1B2D] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[#414296]"
                         >
                           <ClipboardList className="h-4 w-4" />

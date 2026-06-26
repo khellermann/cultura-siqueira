@@ -24,6 +24,7 @@ import { Route as AcervoRouteImport } from './routes/acervo'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as HistoriasSlugRouteImport } from './routes/historias_.$slug'
 import { Route as EventosSlugRouteImport } from './routes/eventos_.$slug'
+import { Route as EditaisSlugRouteImport } from './routes/editais_.$slug'
 import { Route as AcervoSlugRouteImport } from './routes/acervo_.$slug'
 
 const VisiteRoute = VisiteRouteImport.update({
@@ -101,6 +102,11 @@ const EventosSlugRoute = EventosSlugRouteImport.update({
   path: '/eventos/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EditaisSlugRoute = EditaisSlugRouteImport.update({
+  id: '/editais_/$slug',
+  path: '/editais/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AcervoSlugRoute = AcervoSlugRouteImport.update({
   id: '/acervo_/$slug',
   path: '/acervo/$slug',
@@ -122,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/sobre': typeof SobreRoute
   '/visite': typeof VisiteRoute
   '/acervo/$slug': typeof AcervoSlugRoute
+  '/editais/$slug': typeof EditaisSlugRoute
   '/eventos/$slug': typeof EventosSlugRoute
   '/historias/$slug': typeof HistoriasSlugRoute
 }
@@ -140,6 +147,7 @@ export interface FileRoutesByTo {
   '/sobre': typeof SobreRoute
   '/visite': typeof VisiteRoute
   '/acervo/$slug': typeof AcervoSlugRoute
+  '/editais/$slug': typeof EditaisSlugRoute
   '/eventos/$slug': typeof EventosSlugRoute
   '/historias/$slug': typeof HistoriasSlugRoute
 }
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   '/sobre': typeof SobreRoute
   '/visite': typeof VisiteRoute
   '/acervo_/$slug': typeof AcervoSlugRoute
+  '/editais_/$slug': typeof EditaisSlugRoute
   '/eventos_/$slug': typeof EventosSlugRoute
   '/historias_/$slug': typeof HistoriasSlugRoute
 }
@@ -179,6 +188,7 @@ export interface FileRouteTypes {
     | '/sobre'
     | '/visite'
     | '/acervo/$slug'
+    | '/editais/$slug'
     | '/eventos/$slug'
     | '/historias/$slug'
   fileRoutesByTo: FileRoutesByTo
@@ -197,6 +207,7 @@ export interface FileRouteTypes {
     | '/sobre'
     | '/visite'
     | '/acervo/$slug'
+    | '/editais/$slug'
     | '/eventos/$slug'
     | '/historias/$slug'
   id:
@@ -215,6 +226,7 @@ export interface FileRouteTypes {
     | '/sobre'
     | '/visite'
     | '/acervo_/$slug'
+    | '/editais_/$slug'
     | '/eventos_/$slug'
     | '/historias_/$slug'
   fileRoutesById: FileRoutesById
@@ -234,6 +246,7 @@ export interface RootRouteChildren {
   SobreRoute: typeof SobreRoute
   VisiteRoute: typeof VisiteRoute
   AcervoSlugRoute: typeof AcervoSlugRoute
+  EditaisSlugRoute: typeof EditaisSlugRoute
   EventosSlugRoute: typeof EventosSlugRoute
   HistoriasSlugRoute: typeof HistoriasSlugRoute
 }
@@ -345,6 +358,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventosSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/editais_/$slug': {
+      id: '/editais_/$slug'
+      path: '/editais/$slug'
+      fullPath: '/editais/$slug'
+      preLoaderRoute: typeof EditaisSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/acervo_/$slug': {
       id: '/acervo_/$slug'
       path: '/acervo/$slug'
@@ -370,6 +390,7 @@ const rootRouteChildren: RootRouteChildren = {
   SobreRoute: SobreRoute,
   VisiteRoute: VisiteRoute,
   AcervoSlugRoute: AcervoSlugRoute,
+  EditaisSlugRoute: EditaisSlugRoute,
   EventosSlugRoute: EventosSlugRoute,
   HistoriasSlugRoute: HistoriasSlugRoute,
 }
