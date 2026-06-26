@@ -7,7 +7,6 @@ import { SiteFooter, SiteHeader } from "@/components/SiteHeader";
 import { firebaseDb, isFirebaseConfigured } from "@/lib/firebase";
 import {
   getOpportunityDocuments,
-  getRegistrationSharePath,
   isRegistrationOpportunityOpen,
   registrationOpportunitiesCollection,
   type RegistrationOpportunity,
@@ -54,7 +53,7 @@ function Editais() {
             }))
             .filter(
               (opportunity) =>
-                opportunity.type === "edital" && isRegistrationOpportunityOpen(opportunity),
+                opportunity.type === "edital" && opportunity.active !== false,
             ),
         );
       } catch (error) {
@@ -79,10 +78,10 @@ function Editais() {
               Editais
             </p>
             <h1 className="mt-5 max-w-4xl font-sans text-4xl font-black leading-tight tracking-normal text-[#414296] md:text-6xl">
-              Editais e chamadas culturais abertas.
+              Editais e chamadas culturais.
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-relaxed text-[#4B4A5F] md:text-lg">
-              Consulte os documentos publicados e acesse o formulario de inscricao de cada edital.
+              Consulte os documentos publicados e, quando houver inscricao aberta, acesse o formulario do edital.
             </p>
           </div>
         </section>
@@ -100,13 +99,15 @@ function Editais() {
           )}
           {!loading && edicts.length === 0 && !message && (
             <p className="border-2 border-[#E2E2EA] bg-white p-5 text-sm text-[#5F5D70]">
-              No momento nao ha editais abertos.
+              No momento nao ha editais publicados.
             </p>
           )}
           <div className="grid gap-6 md:grid-cols-2">
             {edicts.map((edict) => {
-              const hasRegistrationForm = Boolean(edict.fields?.length);
-              const registrationUrl = edict.registrationUrl?.trim();
+              const isOpen = isRegistrationOpportunityOpen(edict);
+              const hasRegistrationForm = isOpen && Boolean(edict.fields?.length);
+              const registrationUrl = isOpen ? edict.registrationUrl?.trim() : "";
+              const edictStatus = isOpen ? "Edital aberto" : "Edital publicado";
 
               return (
                 <article
@@ -122,7 +123,7 @@ function Editais() {
                   )}
                   <div className="p-6">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#EF1B2D]">
-                      Edital aberto
+                      {edictStatus}
                     </p>
                     <h2 className="mt-3 font-sans text-3xl font-black text-[#414296]">
                       {edict.title}
