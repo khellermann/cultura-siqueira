@@ -51,10 +51,7 @@ function Editais() {
               id: edictDoc.id,
               ...(edictDoc.data() as Omit<RegistrationOpportunity, "id">),
             }))
-            .filter(
-              (opportunity) =>
-                opportunity.type === "edital" && opportunity.active !== false,
-            ),
+            .filter((opportunity) => opportunity.type === "edital"),
         );
       } catch (error) {
         console.error(error);
