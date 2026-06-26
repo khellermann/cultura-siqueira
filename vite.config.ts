@@ -6,30 +6,13 @@ import { defineConfig } from "vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
-  ssr: {
-    noExternal: [
-      "firebase-admin",
-      "firebase-admin/app",
-      "firebase-admin/auth",
-      "firebase-admin/firestore",
-      "@google-cloud/firestore",
-      "google-gax",
-    ],
-  },
   plugins: [
     tsConfigPaths(),
     tailwindcss(),
     tanstackStart({
       server: { entry: "server" },
     }),
-    nitro({
-      rollupConfig: {
-        external: [],
-      },
-      rolldownConfig: {
-        external: [],
-      },
-    }),
+    nitro(),
     react(),
   ],
   server: {

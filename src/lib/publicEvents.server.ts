@@ -1,14 +1,13 @@
 import { eventsCollection, type CulturalEvent } from "@/lib/events";
-import { getFirebaseAdminDb } from "@/lib/firebaseAdmin.server";
+import { firebaseDb } from "@/lib/firebase";
+import { collection, doc, getDoc, getDocs, orderBy, query } from "firebase/firestore";
 
 export async function readPublicEvents() {
   try {
-    const firebaseAdminDb = await getFirebaseAdminDb();
-    if (!firebaseAdminDb) return [];
-    const snapshot = await firebaseAdminDb
-      .collection(eventsCollection)
-      .orderBy("date", "asc")
-      .get();
+    if (!firebaseDb) return [];
+    const snapshot = await getDocs(
+      query(collection(firebaseDb, eventsCollection), orderBy("date", "asc")),
+    );
     return snapshot.docs.map((eventDoc) => ({
       id: eventDoc.id,
       ...(eventDoc.data() as Omit<CulturalEvent, "id">),
@@ -21,9 +20,8 @@ export async function readPublicEvents() {
 
 export async function readPublicEvent(eventId: string) {
   try {
-    const firebaseAdminDb = await getFirebaseAdminDb();
-    if (!firebaseAdminDb) return null;
-    const snapshot = await firebaseAdminDb.collection(eventsCollection).doc(eventId).get();
+    if (!firebaseDb) return null;
+    const snapshot = await getDoc(doc(firebaseDb, eventsCollection, eventId));
     if (!snapshot.exists()) return null;
     return {
       id: snapshot.id,

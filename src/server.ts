@@ -133,7 +133,7 @@ async function handleBlobUpload(request: Request) {
 
     const [{ handleUpload }, { verifyFirebaseAdminToken }] = await Promise.all([
       import("@vercel/blob/client"),
-      import("./lib/firebaseAdmin.server"),
+      import("./lib/firebaseAuth.server"),
     ]);
     const body = (await request.json()) as HandleUploadBody;
     const response = await handleUpload({
