@@ -153,32 +153,46 @@ function EditalDetail() {
             )}
           </article>
 
-          <aside className="border-2 border-[#414296] bg-white p-6 md:p-8">
-            <p className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#414296]">
-              <Download className="h-4 w-4" />
-              Arquivos do edital
-            </p>
-            <div className="mt-6 grid gap-3">
-              {documents.length === 0 && (
-                <p className="text-sm leading-relaxed text-[#5F5D70]">
-                  Nenhum arquivo publicado para este edital.
-                </p>
-              )}
-              {documents.map((documentItem, index) => (
-                <a
-                  key={documentItem.url || documentItem.path || index}
-                  href={documentItem.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group flex items-center justify-between gap-4 border-2 border-[#E2E2EA] px-4 py-4 text-sm font-semibold text-[#24223A] transition hover:border-[#0B86D8] hover:text-[#0B86D8]"
-                >
-                  <span className="flex min-w-0 items-center gap-3">
-                    <FileText className="h-5 w-5 shrink-0 text-[#EF1B2D]" />
-                    <span className="truncate">{documentItem.name || `Anexo ${index + 1}`}</span>
-                  </span>
-                  <Download className="h-4 w-4 shrink-0 transition group-hover:translate-y-0.5" />
-                </a>
-              ))}
+          <aside className="grid gap-6">
+            {edict?.bannerUrl && (
+              <figure className="border-2 border-[#0B86D8] bg-white p-3 shadow-[0_24px_70px_rgba(65,66,150,0.14)]">
+                <img
+                  src={edict.bannerUrl}
+                  alt={`Imagem do edital ${edict.title}`}
+                  width={900}
+                  height={1200}
+                  className="max-h-[560px] w-full bg-[#F8F8FB] object-contain"
+                />
+              </figure>
+            )}
+
+            <div className="border-2 border-[#414296] bg-white p-6 md:p-8">
+              <p className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#414296]">
+                <Download className="h-4 w-4" />
+                Arquivos do edital
+              </p>
+              <div className="mt-6 grid gap-3">
+                {documents.length === 0 && (
+                  <p className="text-sm leading-relaxed text-[#5F5D70]">
+                    Nenhum arquivo publicado para este edital.
+                  </p>
+                )}
+                {documents.map((documentItem, index) => (
+                  <a
+                    key={documentItem.url || documentItem.path || index}
+                    href={documentItem.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group flex items-center justify-between gap-4 border-2 border-[#E2E2EA] px-4 py-4 text-sm font-semibold text-[#24223A] transition hover:border-[#0B86D8] hover:text-[#0B86D8]"
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                      <FileText className="h-5 w-5 shrink-0 text-[#EF1B2D]" />
+                      <span className="truncate">{documentItem.name || `Anexo ${index + 1}`}</span>
+                    </span>
+                    <Download className="h-4 w-4 shrink-0 transition group-hover:translate-y-0.5" />
+                  </a>
+                ))}
+              </div>
             </div>
           </aside>
         </section>
